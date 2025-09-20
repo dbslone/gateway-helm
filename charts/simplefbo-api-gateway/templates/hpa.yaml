@@ -12,14 +12,6 @@ spec:
     name: {{ include "gateway-helm.fullname" . }}
   minReplicas: {{ .Values.autoscaling.minReplicas }}
   maxReplicas: {{ .Values.autoscaling.maxReplicas }}
-  volumes:
-    - name: env-volume
-      secret: 
-        secretName: simplefbo-backend-config
-        items:
-          - key: LOG_LEVEL
-            path: log-level
-            mode: 511
   metrics:
     {{- if .Values.autoscaling.targetCPUUtilizationPercentage }}
     - type: Resource
