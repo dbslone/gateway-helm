@@ -1,4 +1,4 @@
 # API-GATEWAY HELM CHART
 
-## Sync
-Make changes and sync with ArgoCD
+## Build Chart
+- Use the command ` helm package ./charts/simplefbo-api-gateway` and push to github
