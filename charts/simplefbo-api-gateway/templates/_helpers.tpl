@@ -5,6 +5,15 @@ Expand the name of the chart.
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
+{{- define "simplefbo-api-gateway.fullname" -}}
+{{- printf "%s-%s" .Release.Name "simplefbo-api-gateway" | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{- define "simplefbo-api-gateway.labels" -}}
+app.kubernetes.io/name: {{ include "simplefbo-api-gateway.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
+
 {{/*
 Create a default fully qualified app name.
 We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
