@@ -2,14 +2,14 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ include "simplefbo-api-gateway.fullname" . }}
+  name: {{ include "gateway-helm.fullname" . }}
   labels:
-    {{- include "simplefbo-api-gateway.labels" . | nindent 4 }}
+    {{- include "gateway-helm.labels" . | nindent 4 }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ include "simplefbo-api-gateway.fullname" . }}
+    name: {{ include "gateway-helm.fullname" . }}
   minReplicas: {{ .Values.autoscaling.minReplicas }}
   maxReplicas: {{ .Values.autoscaling.maxReplicas }}
   metrics:
