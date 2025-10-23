@@ -9,6 +9,7 @@ on:
       - main
     paths:
       - 'temp/**'
+      - 'charts/simplefbo-api-gateway/Chart.yaml'
 
 jobs:
   release:
