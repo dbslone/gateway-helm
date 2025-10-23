@@ -15,7 +15,7 @@ image:
   # This sets the pull policy for images.
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "0.1.2"
+  tag: "main-41010cd"
 
 # This is for the secrets for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
 imagePullSecrets: []
@@ -136,12 +136,25 @@ resources:
 # This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
 livenessProbe:
   httpGet:
-    path: /live
-    port: http
+    path: /health/live
+    port: 3001
+  initialDelaySeconds: 30
+  periodSeconds: 10
+
 readinessProbe:
   httpGet:
-    path: /ready
-    port: http
+    path: /health/ready
+    port: 3001
+  initialDelaySeconds: 5
+  periodSeconds: 5
+
+startupProbe:
+  httpGet:
+    path: /health/startup
+    port: 3001
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  failureThreshold: 30
 
 # This section is for setting up autoscaling more information can be found here: https://kubernetes.io/docs/concepts/workloads/autoscaling/
 autoscaling:
