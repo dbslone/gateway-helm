@@ -64,6 +64,34 @@ spec:
           volumeMounts:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+          {{- if .Values.postgresql.enabled }}
+          env:
+            - name: PG_USER
+              valueFrom:
+                secretKeyRef:
+                  name: gateway-pg
+                  key: PG_USER
+            - name: PG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: gateway-pg
+                  key: PG_PASSWORD
+            - name: PG_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: gateway-pg
+                  key: PG_HOST
+            - name: PG_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: gateway-pg
+                  key: PG_PORT
+            - name: PG_DB
+              valueFrom:
+                secretKeyRef:
+                  name: gateway-pg
+                  key: PG_DB
+          {{- end }}
       {{- with .Values.volumes }}
       volumes:
         {{- toYaml . | nindent 8 }}

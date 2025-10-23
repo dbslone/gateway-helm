@@ -15,7 +15,7 @@ image:
   # This sets the pull policy for images.
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "main-f19bfe6"
+  tag: "main-8c3f44a"
 
 # This is for the secrets for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
 imagePullSecrets: []
@@ -182,3 +182,10 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+# PostgreSQL configuration
+postgresql:
+  # Enable PostgreSQL secret creation
+  enabled: true
+  # Use existing secret instead of creating new one
+  existingSecret: "gateway-pg"
