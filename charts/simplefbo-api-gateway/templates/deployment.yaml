@@ -91,6 +91,10 @@ spec:
                 secretKeyRef:
                   name: gateway-pg
                   key: PG_DB
+            - name: PG_SSLMODE
+              value: "require"
+            - name: PG_SSLROOTCERT
+              value: ""
           {{- end }}
       {{- with .Values.volumes }}
       volumes:
