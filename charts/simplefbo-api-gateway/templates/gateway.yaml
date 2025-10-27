@@ -5,7 +5,7 @@ metadata:
   namespace: simplefbo
 spec:
   selector:
-    istio: ingressgateway  # Use Istio's default ingress gateway
+    istio: ingress
   servers:
   - port:
       number: 80
