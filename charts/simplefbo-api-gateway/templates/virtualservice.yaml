@@ -6,6 +6,7 @@ metadata:
 spec:
   hosts:
   - "api.simplefbo.com"
+  - "api.dbslone.com"
   gateways:
   - api-gateway
   http:

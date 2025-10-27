@@ -13,6 +13,7 @@ spec:
       protocol: HTTP
     hosts:
     - "api.simplefbo.com"
+    - "api.dbslone.com"
   - port:
       number: 443
       name: https
@@ -22,3 +23,4 @@ spec:
       credentialName: api-simplefbo-tls  # Reference to Secret with TLS cert
     hosts:
     - "api.simplefbo.com"
+    - "api.dbslone.com"
