@@ -32,7 +32,7 @@ spec:
       protocol: HTTPS
     tls:
       mode: SIMPLE
-      credentialName: dbslone-cf-tls
+      credentialName: simplefbo-cf-tls
       minProtocolVersion: TLSV1_2
       cipherSuites:
       - ECDHE-RSA-AES256-GCM-SHA384
