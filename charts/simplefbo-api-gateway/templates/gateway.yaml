@@ -11,11 +11,14 @@ spec:
       number: 80
       name: http
       protocol: HTTP
+    hosts:
+    - "api.simplefbo.com"
+    - "api.dbslone.com"
   - port:
       number: 443
       name: https
       protocol: HTTPS
-  - tls:
+    tls:
       mode: SIMPLE
       credentialName: simplefbo-cf-tls
     hosts:
