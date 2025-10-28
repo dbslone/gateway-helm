@@ -64,7 +64,6 @@ spec:
           volumeMounts:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- if .Values.postgresql.enabled }}
           env:
             - name: PG_USER
               valueFrom:
@@ -91,11 +90,26 @@ spec:
                 secretKeyRef:
                   name: gateway-pg
                   key: PG_DB
-            - name: PG_SSLMODE
-              value: "require"
-            - name: PG_SSLROOTCERT
-              value: ""
-          {{- end }}
+            - name: CLERK_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: gateway-pg
+                  key: CLERK_SECRET_KEY
+            - name: API_URL
+              valueFrom:
+                secretKeyRef:
+                  name: gateway-pg
+                  key: API_URL
+            - name: CLERK_JWT_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: gateway-pg
+                  key: CLERK_JWT_KEY
+            - name: NODE_ENV
+              valueFrom:
+                secretKeyRef:
+                  name: gateway-pg
+                  key: NODE_ENV
       {{- with .Values.volumes }}
       volumes:
         {{- toYaml . | nindent 8 }}
