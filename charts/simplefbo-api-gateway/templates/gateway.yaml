@@ -25,6 +25,6 @@ spec:
       cipherSuites:
       - ECDHE-RSA-AES256-GCM-SHA384
       - ECDHE-RSA-AES128-GCM-SHA256
+      httpRedirect: false
     hosts:
-    - "api.simplefbo.com"
-    - "api.dbslone.com"
+    - "*"
