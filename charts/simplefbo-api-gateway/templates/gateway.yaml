@@ -26,4 +26,5 @@ spec:
       - ECDHE-RSA-AES256-GCM-SHA384
       - ECDHE-RSA-AES128-GCM-SHA256
     hosts:
-    - "*"
+    - "api.dbslone.com"
+    - "api.simplefbo.com"
