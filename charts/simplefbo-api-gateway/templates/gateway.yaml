@@ -21,6 +21,7 @@ spec:
     tls:
       mode: SIMPLE
       credentialName: simplefbo-cf-tls
+      minimumProtocolVersion: TLSV1_2
     hosts:
     - "api.simplefbo.com"
     - "api.dbslone.com"
