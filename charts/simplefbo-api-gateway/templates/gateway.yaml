@@ -22,6 +22,9 @@ spec:
       mode: SIMPLE
       credentialName: simplefbo-cf-tls
       minProtocolVersion: TLSV1_2
+      cipherSuites:
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES128-GCM-SHA256
     hosts:
     - "api.simplefbo.com"
     - "api.dbslone.com"
