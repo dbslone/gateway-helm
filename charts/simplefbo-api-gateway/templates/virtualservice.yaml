@@ -13,6 +13,22 @@ spec:
   - match:
     - uri:
         prefix: /graphql
+    corsPolicy:
+      allowOrigins:
+      - regex: ".*"
+      allowMethods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - PATCH
+      - OPTIONS
+      allowHeaders:
+      - "*"
+      exposeHeaders:
+      - "*"
+      maxAge: "24h"
+      allowCredentials: false
     route:
     - destination:
         host: api-gateway
