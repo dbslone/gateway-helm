@@ -185,3 +185,25 @@ vault.hashicorp.com/secret-volume-path-gcp-service-account: /var/secrets/gcp-ser
 vault.hashicorp.com/agent-inject-file-gcp-service-accounts: keys.json
 vault.hashicorp.com/secret-volume-path-gcp-service-accounts: /var/secrets/gcp-service-accounts
 {{- end -}}
+
+{{/*
+CORS policy for VirtualService routes
+*/}}
+{{- define "istio.corsPolicy" -}}
+corsPolicy:
+  allowOrigins:
+  - regex: ".*"
+  allowMethods:
+  - GET
+  - POST
+  - PUT
+  - DELETE
+  - PATCH
+  - OPTIONS
+  allowHeaders:
+  - "*"
+  exposeHeaders:
+  - "*"
+  maxAge: "24h"
+  allowCredentials: false
+{{- end -}}
