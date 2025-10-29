@@ -8,7 +8,7 @@ spec:
   - "api.simplefbo.com"
   - "api.dbslone.com"
   gateways:
-  - api-gateway
+  - istio-ingress/api-gateway
   http:
   - match:
     - uri:
