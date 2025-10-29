@@ -10,7 +10,7 @@ env: production
 replicaCount: 1
 
 # This sets the number of old ReplicaSets to retain to allow rollback
-revisionHistoryLimit: 10
+revisionHistoryLimit: 2
 
 # Deployment strategy configuration
 strategy:
