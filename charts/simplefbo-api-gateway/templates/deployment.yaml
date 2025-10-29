@@ -101,6 +101,11 @@ spec:
                 secretKeyRef:
                   name: gateway-pg
                   key: CLERK_SECRET_KEY
+            - name: CLERK_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: gateway-pg
+                  key: CLERK_WEBHOOK_SECRET
             - name: API_URL
               valueFrom:
                 secretKeyRef:
