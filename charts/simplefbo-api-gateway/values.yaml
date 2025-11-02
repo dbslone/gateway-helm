@@ -134,13 +134,12 @@ opentelemetry:
   otlpEndpoint: "http://tempo.monitoring.svc.cluster.local:4317"
   # Additional environment variables for OpenTelemetry
   # Uncomment and customize as needed for your setup:
-  # env:
-  #   OTEL_RESOURCE_ATTRIBUTES: "service.name=simplefbo-api-gateway,service.version=1.0.0"
-  #   OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4318"
-  #   OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf"  # or "grpc"
-  #   OTEL_LOGS_EXPORTER: "otlp"
-  #   OTEL_METRICS_EXPORTER: "otlp"
-  #   OTEL_TRACES_EXPORTER: "otlp"
-  #   OTEL_PROPAGATORS: "tracecontext,baggage"
-  #   NODE_OPTIONS: "--require ./opentelemetry.js"
-  env: {}
+  env:
+    OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+    # Optionally enable specific exporters if your app is instrumented:
+    # OTEL_TRACES_EXPORTER: "otlp"
+    # OTEL_METRICS_EXPORTER: "otlp"
+    # OTEL_LOGS_EXPORTER: "otlp"
+    # OTEL_RESOURCE_ATTRIBUTES: "service.name=simplefbo-api-gateway,service.version=1.0.0"
+    # OTEL_PROPAGATORS: "tracecontext,baggage"
+    # NODE_OPTIONS: "--require ./opentelemetry.js"
