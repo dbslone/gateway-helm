@@ -18,7 +18,7 @@ spec:
     - destination:
         host: api-gateway
         port:
-          number: 80
+          number: 3000
   - match:
     - uri:
         prefix: /signup
@@ -27,9 +27,9 @@ spec:
     - destination:
         host: api-gateway
         port:
-          number: 80
+          number: 3000
   - route:
     - destination:
         host: api-gateway
         port:
-          number: 80
+          number: 3000
