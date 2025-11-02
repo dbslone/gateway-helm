@@ -121,6 +121,22 @@ spec:
                 secretKeyRef:
                   name: gateway-pg
                   key: NODE_ENV
+          {{- if .Values.opentelemetry.enabled }}
+            {{- if .Values.opentelemetry.serviceName }}
+            - name: OTEL_SERVICE_NAME
+              value: {{ .Values.opentelemetry.serviceName | quote }}
+            {{- end }}
+            {{- if .Values.opentelemetry.otlpEndpoint }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ .Values.opentelemetry.otlpEndpoint | quote }}
+            {{- end }}
+            {{- with .Values.opentelemetry.env }}
+            {{- range $key, $value := . }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            {{- end }}
+          {{- end }}
       {{- with .Values.volumes }}
       volumes:
         {{- toYaml . | nindent 8 }}

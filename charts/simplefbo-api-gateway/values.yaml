@@ -120,3 +120,27 @@ postgresql:
   enabled: true
   # Use existing secret instead of creating new one
   existingSecret: "gateway-pg"
+
+# OpenTelemetry configuration
+# For Node.js apps, you need to install @opentelemetry/sdk-node and related packages
+# and set up your instrumentation file. See: https://opentelemetry.io/docs/instrumentation/js/
+opentelemetry:
+  # Enable OpenTelemetry instrumentation
+  enabled: false
+  # Service name for tracing
+  serviceName: "simplefbo-api-gateway"
+  # OTLP endpoint (OTLP/HTTP exporter on port 4318, or OTLP/gRPC on port 4317)
+  # Example: "http://otel-collector:4318" or "http://otel-collector.observability.svc.cluster.local:4318"
+  otlpEndpoint: ""
+  # Additional environment variables for OpenTelemetry
+  # Uncomment and customize as needed for your setup:
+  # env:
+  #   OTEL_RESOURCE_ATTRIBUTES: "service.name=simplefbo-api-gateway,service.version=1.0.0"
+  #   OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4318"
+  #   OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf"  # or "grpc"
+  #   OTEL_LOGS_EXPORTER: "otlp"
+  #   OTEL_METRICS_EXPORTER: "otlp"
+  #   OTEL_TRACES_EXPORTER: "otlp"
+  #   OTEL_PROPAGATORS: "tracecontext,baggage"
+  #   NODE_OPTIONS: "--require ./opentelemetry.js"
+  env: {}
