@@ -126,12 +126,12 @@ postgresql:
 # and set up your instrumentation file. See: https://opentelemetry.io/docs/instrumentation/js/
 opentelemetry:
   # Enable OpenTelemetry instrumentation
-  enabled: false
+  enabled: true
   # Service name for tracing
   serviceName: "simplefbo-api-gateway"
   # OTLP endpoint (OTLP/HTTP exporter on port 4318, or OTLP/gRPC on port 4317)
   # Example: "http://otel-collector:4318" or "http://otel-collector.observability.svc.cluster.local:4318"
-  otlpEndpoint: ""
+  otlpEndpoint: "http://tempo.monitoring.svc.cluster.local:4317"
   # Additional environment variables for OpenTelemetry
   # Uncomment and customize as needed for your setup:
   # env:
