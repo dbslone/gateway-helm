@@ -1,0 +1,107 @@
+{{- if .Values.replicasetPruner.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "gateway-helm.fullname" . }}-replicaset-pruner
+  labels:
+    {{- include "gateway-helm.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  ttlSecondsAfterFinished: {{ .Values.replicasetPruner.ttlSecondsAfterFinished | default 300 }}
+  backoffLimit: {{ .Values.replicasetPruner.backoffLimit | default 3 }}
+  template:
+    metadata:
+      labels:
+        {{- include "gateway-helm.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "gateway-helm.serviceAccountName" . }}
+      restartPolicy: Never
+      containers:
+      - name: replicaset-pruner
+        image: {{ .Values.replicasetPruner.image.repository }}:{{ .Values.replicasetPruner.image.tag }}
+        imagePullPolicy: {{ .Values.replicasetPruner.image.pullPolicy | default "IfNotPresent" }}
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -e
+          echo "Starting replicaset pruning job..."
+          
+          # Get the deployment name
+          DEPLOYMENT_NAME="{{ include "gateway-helm.fullname" . }}"
+          KEEP_COUNT={{ .Values.revisionHistoryLimit | default 2 }}
+          
+          # Get all replicasets for this deployment, sorted by creation timestamp (oldest first)
+          echo "Fetching replicasets for deployment: $DEPLOYMENT_NAME"
+          RS_LIST=$(kubectl get rs -l app.kubernetes.io/name={{ include "gateway-helm.name" . }},app.kubernetes.io/instance={{ .Release.Name }} --sort-by=.metadata.creationTimestamp -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null || echo "")
+          
+          if [ -z "$RS_LIST" ]; then
+            echo "No replicasets found for deployment $DEPLOYMENT_NAME"
+            exit 0
+          fi
+          
+          # Count total replicasets (non-empty lines)
+          TOTAL_COUNT=$(echo "$RS_LIST" | awk 'NF > 0' | wc -l | awk '{print $1}')
+          if [ -z "$TOTAL_COUNT" ] || [ "$TOTAL_COUNT" = "0" ]; then
+            echo "No replicasets found for deployment $DEPLOYMENT_NAME"
+            exit 0
+          fi
+          echo "Found $TOTAL_COUNT replicaset(s)"
+          
+          # Calculate how many to keep (revisionHistoryLimit + 1 for the active one)
+          KEEP_TOTAL=$((KEEP_COUNT + 1))
+          
+          if [ "$TOTAL_COUNT" -le "$KEEP_TOTAL" ]; then
+            echo "Only $TOTAL_COUNT replicaset(s) found, keeping all (limit: $KEEP_TOTAL)"
+            exit 0
+          fi
+          
+          echo "Keeping $KEEP_TOTAL most recent replicaset(s)"
+          
+          # Get the list of replicasets to delete (all except the last KEEP_TOTAL)
+          DELETE_COUNT=$((TOTAL_COUNT - KEEP_TOTAL))
+          DELETE_LIST=$(echo "$RS_LIST" | awk 'NF > 0' | head -n "$DELETE_COUNT")
+          
+          echo "Will delete $DELETE_COUNT old replicaset(s)"
+          
+          # Delete old replicasets that have 0 replicas
+          DELETED=0
+          SKIPPED=0
+          for RS in $DELETE_LIST; do
+            if [ -z "$RS" ]; then
+              continue
+            fi
+            
+            RS_REPLICAS=$(kubectl get rs "$RS" -o jsonpath='{.status.replicas}' 2>/dev/null || echo "0")
+            RS_READY=$(kubectl get rs "$RS" -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
+            
+            if [ "$RS_REPLICAS" = "0" ] && [ "$RS_READY" = "0" ]; then
+              echo "Deleting old replicaset: $RS (0 replicas)"
+              if kubectl delete rs "$RS" --ignore-not-found=true; then
+                DELETED=$((DELETED + 1))
+              else
+                echo "Warning: Failed to delete replicaset $RS"
+              fi
+            else
+              echo "Skipping replicaset $RS (has $RS_REPLICAS replicas, $RS_READY ready)"
+              SKIPPED=$((SKIPPED + 1))
+            fi
+          done
+          
+          echo "Replicaset pruning completed: $DELETED deleted, $SKIPPED skipped"
+        resources:
+          {{- with .Values.replicasetPruner.resources }}
+          {{- toYaml . | nindent 10 }}
+          {{- else }}
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+          {{- end }}
+{{- end }}
+
