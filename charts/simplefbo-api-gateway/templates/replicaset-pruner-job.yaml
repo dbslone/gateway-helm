@@ -27,71 +27,145 @@ spec:
         - /bin/sh
         - -c
         - |
-          set -e
           echo "Starting replicaset pruning job..."
           
           # Get the deployment name
           DEPLOYMENT_NAME="{{ include "gateway-helm.fullname" . }}"
           KEEP_COUNT={{ .Values.revisionHistoryLimit | default 2 }}
+          NAMESPACE="{{ .Release.Namespace }}"
           
-          # Get all replicasets for this deployment, sorted by creation timestamp (oldest first)
-          echo "Fetching replicasets for deployment: $DEPLOYMENT_NAME"
-          RS_LIST=$(kubectl get rs -l app.kubernetes.io/name={{ include "gateway-helm.name" . }},app.kubernetes.io/instance={{ .Release.Name }} --sort-by=.metadata.creationTimestamp -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null || echo "")
+          echo "Deployment: $DEPLOYMENT_NAME"
+          echo "Namespace: $NAMESPACE"
+          echo "Keeping up to $KEEP_COUNT old replicasets"
           
-          if [ -z "$RS_LIST" ]; then
+          # Verify deployment exists
+          if ! kubectl get deployment "$DEPLOYMENT_NAME" -n "$NAMESPACE" >/dev/null 2>&1; then
+            echo "Warning: Deployment $DEPLOYMENT_NAME not found, skipping pruning"
+            exit 0
+          fi
+          
+          # Get all replicasets that match the deployment's selector labels
+          # Using label selector to find replicasets created by this deployment
+          LABEL_SELECTOR="app.kubernetes.io/name={{ include "gateway-helm.name" . }},app.kubernetes.io/instance={{ .Release.Name }}"
+          echo "Label selector: $LABEL_SELECTOR"
+          
+          # Method 1: Get replicasets by label selector
+          RS_LIST=$(kubectl get rs -l "$LABEL_SELECTOR" -n "$NAMESPACE" --sort-by=.metadata.creationTimestamp -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null || echo "")
+          
+          # Method 2: If no replicasets found by label, try finding by deployment name pattern
+          # Replicasets created by deployments follow pattern: <deployment-name>-<hash>
+          if [ -z "$RS_LIST" ] || [ -z "$(echo "$RS_LIST" | grep -v '^$')" ]; then
+            echo "No replicasets found by label selector, trying deployment name pattern..."
+            RS_LIST=$(kubectl get rs -n "$NAMESPACE" --sort-by=.metadata.creationTimestamp -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null | grep "^${DEPLOYMENT_NAME}-" || echo "")
+          fi
+          
+          if [ -z "$RS_LIST" ] || [ -z "$(echo "$RS_LIST" | grep -v '^$')" ]; then
             echo "No replicasets found for deployment $DEPLOYMENT_NAME"
             exit 0
           fi
           
-          # Count total replicasets (non-empty lines)
-          TOTAL_COUNT=$(echo "$RS_LIST" | awk 'NF > 0' | wc -l | awk '{print $1}')
-          if [ -z "$TOTAL_COUNT" ] || [ "$TOTAL_COUNT" = "0" ]; then
-            echo "No replicasets found for deployment $DEPLOYMENT_NAME"
+          # Count replicasets (filter out empty lines)
+          RS_ARRAY=$(echo "$RS_LIST" | grep -v '^$')
+          RS_COUNT=$(echo "$RS_ARRAY" | wc -l | tr -d ' ')
+          
+          if [ "$RS_COUNT" = "0" ] || [ -z "$RS_COUNT" ]; then
+            echo "No replicasets found to process"
             exit 0
           fi
-          echo "Found $TOTAL_COUNT replicaset(s)"
+          
+          echo "Found $RS_COUNT replicaset(s)"
           
           # Calculate how many to keep (revisionHistoryLimit + 1 for the active one)
           KEEP_TOTAL=$((KEEP_COUNT + 1))
           
-          if [ "$TOTAL_COUNT" -le "$KEEP_TOTAL" ]; then
-            echo "Only $TOTAL_COUNT replicaset(s) found, keeping all (limit: $KEEP_TOTAL)"
+          if [ "$RS_COUNT" -le "$KEEP_TOTAL" ]; then
+            echo "Only $RS_COUNT replicaset(s) found, keeping all (limit: $KEEP_TOTAL)"
             exit 0
           fi
           
           echo "Keeping $KEEP_TOTAL most recent replicaset(s)"
           
-          # Get the list of replicasets to delete (all except the last KEEP_TOTAL)
-          DELETE_COUNT=$((TOTAL_COUNT - KEEP_TOTAL))
-          DELETE_LIST=$(echo "$RS_LIST" | awk 'NF > 0' | head -n "$DELETE_COUNT")
+          # Delete old replicasets (all except the last KEEP_TOTAL)
+          DELETE_COUNT=$((RS_COUNT - KEEP_TOTAL))
+          echo "Will attempt to delete $DELETE_COUNT old replicaset(s)"
           
-          echo "Will delete $DELETE_COUNT old replicaset(s)"
-          
-          # Delete old replicasets that have 0 replicas
-          DELETED=0
-          SKIPPED=0
-          for RS in $DELETE_LIST; do
-            if [ -z "$RS" ]; then
-              continue
-            fi
+          # Process replicasets from oldest to newest
+          if [ "$RS_COUNT" -gt "$KEEP_TOTAL" ]; then
+            # Get the oldest replicasets to delete (all except the last KEEP_TOTAL)
+            DELETE_RS=$(echo "$RS_ARRAY" | head -n "$DELETE_COUNT")
             
-            RS_REPLICAS=$(kubectl get rs "$RS" -o jsonpath='{.status.replicas}' 2>/dev/null || echo "0")
-            RS_READY=$(kubectl get rs "$RS" -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
-            
-            if [ "$RS_REPLICAS" = "0" ] && [ "$RS_READY" = "0" ]; then
-              echo "Deleting old replicaset: $RS (0 replicas)"
-              if kubectl delete rs "$RS" --ignore-not-found=true; then
-                DELETED=$((DELETED + 1))
-              else
-                echo "Warning: Failed to delete replicaset $RS"
+            echo "$DELETE_RS" | while IFS= read -r RS; do
+              if [ -z "$RS" ]; then
+                continue
               fi
-            else
-              echo "Skipping replicaset $RS (has $RS_REPLICAS replicas, $RS_READY ready)"
-              SKIPPED=$((SKIPPED + 1))
-            fi
-          done
+              
+              echo "Processing replicaset: $RS"
+              
+              # Get replicaset status
+              RS_REPLICAS=$(kubectl get rs "$RS" -n "$NAMESPACE" -o jsonpath='{.status.replicas}' 2>/dev/null || echo "0")
+              RS_READY=$(kubectl get rs "$RS" -n "$NAMESPACE" -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
+              RS_AVAILABLE=$(kubectl get rs "$RS" -n "$NAMESPACE" -o jsonpath='{.status.availableReplicas}' 2>/dev/null || echo "0")
+              
+              # Handle null values
+              if [ "$RS_REPLICAS" = "null" ] || [ -z "$RS_REPLICAS" ]; then
+                RS_REPLICAS="0"
+              fi
+              if [ "$RS_READY" = "null" ] || [ -z "$RS_READY" ]; then
+                RS_READY="0"
+              fi
+              if [ "$RS_AVAILABLE" = "null" ] || [ -z "$RS_AVAILABLE" ]; then
+                RS_AVAILABLE="0"
+              fi
+              
+              echo "  Status - Replicas: $RS_REPLICAS, Ready: $RS_READY, Available: $RS_AVAILABLE"
+              
+              # Delete if replicaset has no replicas (check all status fields)
+              # A replicaset is safe to delete if it has 0 replicas in all status fields
+              if [ "$RS_REPLICAS" = "0" ] || [ -z "$RS_REPLICAS" ] || [ "$RS_REPLICAS" = "null" ]; then
+                # Double-check by getting the actual spec.replicas
+                RS_SPEC=$(kubectl get rs "$RS" -n "$NAMESPACE" -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "0")
+                if [ "$RS_SPEC" = "0" ] || [ -z "$RS_SPEC" ] || [ "$RS_SPEC" = "null" ]; then
+                  echo "  Deleting replicaset $RS (no replicas configured)"
+                  if kubectl delete rs "$RS" -n "$NAMESPACE" --ignore-not-found=true --wait=false 2>&1; then
+                    echo "  ✓ Successfully deleted $RS"
+                    sleep 1
+                  else
+                    echo "  ✗ Failed to delete $RS (may be protected by deployment)"
+                    # Try with force grace period
+                    if kubectl delete rs "$RS" -n "$NAMESPACE" --ignore-not-found=true --wait=false --grace-period=0 --force 2>&1; then
+                      echo "  ✓ Force deleted $RS"
+                    fi
+                  fi
+                else
+                  echo "  Skipping $RS (spec.replicas=$RS_SPEC, status.replicas=$RS_REPLICAS)"
+                fi
+              else
+                echo "  Skipping $RS (has active replicas: $RS_REPLICAS total, $RS_READY ready, $RS_AVAILABLE available)"
+              fi
+            done
+            
+            # Count results by checking if replicasets still exist
+            echo ""
+            echo "Verifying deletion results..."
+            echo "$DELETE_RS" | while IFS= read -r RS; do
+              if [ -z "$RS" ]; then
+                continue
+              fi
+              if ! kubectl get rs "$RS" -n "$NAMESPACE" >/dev/null 2>&1; then
+                echo "✓ $RS successfully deleted"
+              else
+                RS_REPLICAS=$(kubectl get rs "$RS" -n "$NAMESPACE" -o jsonpath='{.status.replicas}' 2>/dev/null || echo "0")
+                if [ "$RS_REPLICAS" = "0" ] || [ "$RS_REPLICAS" = "null" ] || [ -z "$RS_REPLICAS" ]; then
+                  echo "⚠ $RS still exists but has 0 replicas (may be in use by deployment)"
+                else
+                  echo "⚠ $RS still exists with $RS_REPLICAS replicas"
+                fi
+              fi
+            done
+          fi
           
-          echo "Replicaset pruning completed: $DELETED deleted, $SKIPPED skipped"
+          echo ""
+          echo "Replicaset pruning job completed"
         resources:
           {{- with .Values.replicasetPruner.resources }}
           {{- toYaml . | nindent 10 }}
