@@ -85,6 +85,29 @@ spec:
           
           echo "Keeping $KEEP_TOTAL most recent replicaset(s)"
           
+          # Get the current active ReplicaSet from the deployment
+          # Method 1: Check deployment status for new ReplicaSet
+          ACTIVE_RS=$(kubectl get deployment "$DEPLOYMENT_NAME" -n "$NAMESPACE" -o jsonpath='{.status.conditions[?(@.type=="Progressing")].message}' 2>/dev/null | grep -oE '[a-z0-9-]+-[a-z0-9]{10}' | head -n 1 || echo "")
+          
+          # Method 2: Find newest ReplicaSet with replicas > 0
+          if [ -z "$ACTIVE_RS" ]; then
+            ACTIVE_RS=$(kubectl get rs -l "$LABEL_SELECTOR" -n "$NAMESPACE" --sort-by=.metadata.creationTimestamp -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.replicas}{"\n"}{end}' 2>/dev/null | grep -v -E "(\t0|\tnull|\t)$" | tail -n 1 | cut -f1 || echo "")
+          fi
+          
+          # Method 3: Get newest ReplicaSet (most recent one is likely active)
+          if [ -z "$ACTIVE_RS" ]; then
+            ACTIVE_RS=$(echo "$RS_ARRAY" | tail -n 1)
+          fi
+          
+          if [ -n "$ACTIVE_RS" ]; then
+            echo "Active ReplicaSet: $ACTIVE_RS"
+          else
+            echo "Warning: Could not determine active ReplicaSet"
+          fi
+          
+          # Also get all ReplicaSets that are owned by the deployment (for safety check)
+          DEPLOYMENT_UID=$(kubectl get deployment "$DEPLOYMENT_NAME" -n "$NAMESPACE" -o jsonpath='{.metadata.uid}' 2>/dev/null || echo "")
+          
           # Delete old replicasets (all except the last KEEP_TOTAL)
           DELETE_COUNT=$((RS_COUNT - KEEP_TOTAL))
           echo "Will attempt to delete $DELETE_COUNT old replicaset(s)"
@@ -101,46 +124,64 @@ spec:
               
               echo "Processing replicaset: $RS"
               
+              # Skip if this is the active ReplicaSet
+              if [ "$RS" = "$ACTIVE_RS" ]; then
+                echo "  Skipping $RS (this is the active ReplicaSet)"
+                continue
+              fi
+              
+              # Verify this ReplicaSet is owned by the deployment (safety check)
+              if [ -n "$DEPLOYMENT_UID" ]; then
+                RS_OWNER=$(kubectl get rs "$RS" -n "$NAMESPACE" -o jsonpath='{.metadata.ownerReferences[0].uid}' 2>/dev/null || echo "")
+                if [ -n "$RS_OWNER" ] && [ "$RS_OWNER" != "$DEPLOYMENT_UID" ]; then
+                  echo "  Skipping $RS (not owned by deployment $DEPLOYMENT_NAME)"
+                  continue
+                fi
+              fi
+              
               # Get replicaset status
               RS_REPLICAS=$(kubectl get rs "$RS" -n "$NAMESPACE" -o jsonpath='{.status.replicas}' 2>/dev/null || echo "0")
-              RS_READY=$(kubectl get rs "$RS" -n "$NAMESPACE" -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
-              RS_AVAILABLE=$(kubectl get rs "$RS" -n "$NAMESPACE" -o jsonpath='{.status.availableReplicas}' 2>/dev/null || echo "0")
+              RS_SPEC=$(kubectl get rs "$RS" -n "$NAMESPACE" -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "0")
               
               # Handle null values
               if [ "$RS_REPLICAS" = "null" ] || [ -z "$RS_REPLICAS" ]; then
                 RS_REPLICAS="0"
               fi
-              if [ "$RS_READY" = "null" ] || [ -z "$RS_READY" ]; then
-                RS_READY="0"
-              fi
-              if [ "$RS_AVAILABLE" = "null" ] || [ -z "$RS_AVAILABLE" ]; then
-                RS_AVAILABLE="0"
+              if [ "$RS_SPEC" = "null" ] || [ -z "$RS_SPEC" ]; then
+                RS_SPEC="0"
               fi
               
-              echo "  Status - Replicas: $RS_REPLICAS, Ready: $RS_READY, Available: $RS_AVAILABLE"
+              echo "  Status - spec.replicas: $RS_SPEC, status.replicas: $RS_REPLICAS"
               
-              # Delete if replicaset has no replicas (check all status fields)
-              # A replicaset is safe to delete if it has 0 replicas in all status fields
-              if [ "$RS_REPLICAS" = "0" ] || [ -z "$RS_REPLICAS" ] || [ "$RS_REPLICAS" = "null" ]; then
-                # Double-check by getting the actual spec.replicas
-                RS_SPEC=$(kubectl get rs "$RS" -n "$NAMESPACE" -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "0")
-                if [ "$RS_SPEC" = "0" ] || [ -z "$RS_SPEC" ] || [ "$RS_SPEC" = "null" ]; then
-                  echo "  Deleting replicaset $RS (no replicas configured)"
-                  if kubectl delete rs "$RS" -n "$NAMESPACE" --ignore-not-found=true --wait=false 2>&1; then
-                    echo "  ✓ Successfully deleted $RS"
-                    sleep 1
-                  else
-                    echo "  ✗ Failed to delete $RS (may be protected by deployment)"
-                    # Try with force grace period
-                    if kubectl delete rs "$RS" -n "$NAMESPACE" --ignore-not-found=true --wait=false --grace-period=0 --force 2>&1; then
-                      echo "  ✓ Force deleted $RS"
-                    fi
-                  fi
+              # Delete old ReplicaSets that are beyond the history limit
+              # Try to delete regardless of replica status (Kubernetes will prevent deletion if it's in use)
+              # Only delete if spec.replicas is 0 OR status.replicas is 0
+              CAN_DELETE=false
+              
+              if [ "$RS_SPEC" = "0" ] || [ -z "$RS_SPEC" ] || [ "$RS_SPEC" = "null" ]; then
+                CAN_DELETE=true
+                REASON="spec.replicas=0"
+              elif [ "$RS_REPLICAS" = "0" ] || [ -z "$RS_REPLICAS" ] || [ "$RS_REPLICAS" = "null" ]; then
+                CAN_DELETE=true
+                REASON="status.replicas=0"
+              fi
+              
+              if [ "$CAN_DELETE" = "true" ]; then
+                echo "  Deleting replicaset $RS ($REASON, old ReplicaSet beyond history limit)"
+                if kubectl delete rs "$RS" -n "$NAMESPACE" --ignore-not-found=true --wait=false 2>&1; then
+                  echo "  ✓ Successfully deleted $RS"
+                  sleep 1
                 else
-                  echo "  Skipping $RS (spec.replicas=$RS_SPEC, status.replicas=$RS_REPLICAS)"
+                  echo "  ✗ Failed to delete $RS, trying force delete..."
+                  # Try with force deletion
+                  if kubectl delete rs "$RS" -n "$NAMESPACE" --ignore-not-found=true --wait=false --grace-period=0 --force 2>&1; then
+                    echo "  ✓ Force deleted $RS"
+                  else
+                    echo "  ✗ Force delete also failed for $RS - may be protected by finalizers or owner references"
+                  fi
                 fi
               else
-                echo "  Skipping $RS (has active replicas: $RS_REPLICAS total, $RS_READY ready, $RS_AVAILABLE available)"
+                echo "  ⚠ Skipping $RS (has active replicas: spec=$RS_SPEC, status=$RS_REPLICAS) - may need manual cleanup"
               fi
             done
             
