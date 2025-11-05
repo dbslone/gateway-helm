@@ -90,7 +90,7 @@ autoscaling:
 volumes:
   - name: minio-ca
     configMap:
-      secretName: minio-ca
+      name: minio-ca-cert
 # Additional volumeMounts on the output Deployment definition.
 volumeMounts:
   - name: minio-ca
