@@ -146,6 +146,11 @@ spec:
                 secretKeyRef:
                   name: gateway-pg
                   key: MINIO_BUCKET_NAME
+            - name: MINIO_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: gateway-pg
+                  key: MINIO_PORT
           {{- if .Values.opentelemetry.enabled }}
             {{- if .Values.opentelemetry.serviceName }}
             - name: OTEL_SERVICE_NAME
