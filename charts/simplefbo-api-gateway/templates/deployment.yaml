@@ -121,6 +121,26 @@ spec:
                 secretKeyRef:
                   name: gateway-pg
                   key: NODE_ENV
+            - name: MINIO_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: gateway-pg
+                  key: MINIO_ENDPOINT
+            - name: MINIO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: gateway-pg
+                  key: MINIO_ACCESS_KEY
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: gateway-pg
+                  key: MINIO_SECRET_KEY
+            - name: MINIO_USE_SSL
+              valueFrom:
+                secretKeyRef:
+                  name: gateway-pg
+                  key: MINIO_USE_SSL
           {{- if .Values.opentelemetry.enabled }}
             {{- if .Values.opentelemetry.serviceName }}
             - name: OTEL_SERVICE_NAME
