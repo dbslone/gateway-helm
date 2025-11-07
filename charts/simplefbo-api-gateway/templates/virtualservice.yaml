@@ -5,31 +5,58 @@ metadata:
   namespace: simplefbo
 spec:
   hosts:
-  - "api.simplefbo.com"
-  - "api.dbslone.com"
+    - "api.simplefbo.com"
+    - "api.dbslone.com"
   gateways:
-  - istio-ingress/api-gateway
+    - istio-ingress/api-gateway
   http:
-  - match:
-    - uri:
-        prefix: /graphql
-    {{- include "istio.corsPolicy" . | nindent 4 }}
-    route:
-    - destination:
-        host: api-gateway
-        port:
-          number: 3000
-  - match:
-    - uri:
-        prefix: /signup
-    {{- include "istio.corsPolicy" . | nindent 4 }}
-    route:
-    - destination:
-        host: api-gateway
-        port:
-          number: 3000
-  - route:
-    - destination:
-        host: api-gateway
-        port:
-          number: 3000
+    - match:
+        - uri:
+            prefix: /graphql
+      {{- include "istio.corsPolicy" . | nindent 6 }}
+      route:
+        - destination:
+            host: api-gateway
+            port:
+              number: 3000
+    - match:
+        - uri:
+            prefix: /user
+      {{- include "istio.corsPolicy" . | nindent 6 }}
+      route:
+        - destination:
+            host: api-gateway
+            port:
+              number: 3000
+    - match:
+        - uri:
+            prefix: /squawk
+      {{- include "istio.corsPolicy" . | nindent 6 }}
+      route:
+        - destination:
+            host: api-gateway
+            port:
+              number: 3000
+    - match:
+        - uri:
+            prefix: /squawkLog
+      {{- include "istio.corsPolicy" . | nindent 6 }}
+      route:
+        - destination:
+            host: api-gateway
+            port:
+              number: 3000
+    - match:
+        - uri:
+            prefix: /signup
+      {{- include "istio.corsPolicy" . | nindent 6 }}
+      route:
+        - destination:
+            host: api-gateway
+            port:
+              number: 3000
+    - route:
+        - destination:
+            host: api-gateway
+            port:
+              number: 3000
