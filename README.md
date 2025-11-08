@@ -1,5 +1,8 @@
 # API-GATEWAY HELM CHART
 
+## IMPORTANT
+The `Gateway` defined in this project should be the only one. When new services need to be added you should add under the ports and define the VirtualService in the applications helm project.
+
 ## Build Chart
 - Use the command ` helm package ./charts/simplefbo-api-gateway` and push to github
 
