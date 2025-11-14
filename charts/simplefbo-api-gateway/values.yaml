@@ -127,25 +127,3 @@ opentelemetry:
     # OTEL_RESOURCE_ATTRIBUTES: "service.name=simplefbo-api-gateway,service.version=1.0.0"
     # OTEL_PROPAGATORS: "tracecontext,baggage"
     # NODE_OPTIONS: "--require ./opentelemetry.js"
-# Replicaset pruner job configuration
-# This job runs after deployment to clean up old replicasets
-replicasetPruner:
-  # Enable the replicaset pruner job
-  enabled: true
-  # Image for the pruner job (uses kubectl)
-  image:
-    repository: bitnami/kubectl
-    tag: "latest"
-    pullPolicy: IfNotPresent
-  # TTL for completed jobs (in seconds)
-  ttlSecondsAfterFinished: 300
-  # Number of retries before marking job as failed
-  backoffLimit: 3
-  # Resource limits for the pruner job
-  resources:
-    requests:
-      cpu: 50m
-      memory: 64Mi
-    limits:
-      cpu: 100m
-      memory: 128Mi
