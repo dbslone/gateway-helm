@@ -71,6 +71,11 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           env:
+            - name: PG_USE_SSL
+              valueFrom:
+                secretKeyRef:
+                  name: gateway-pg
+                  key: PG_USE_SSL
             - name: PG_USER
               valueFrom:
                 secretKeyRef:
