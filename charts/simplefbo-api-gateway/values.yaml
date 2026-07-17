@@ -1,129 +1,22 @@
-# Default values for gateway-helm.
-# This is a YAML-formatted file.
-# Declare variables to be passed into your templates.
+# Values for gateway-helm.
+#
+# The api-gateway (Node.js) pod has been decommissioned — Clerk auth moved into
+# mvn-backend (see mvn-backend/CUTOVER.md). This chart now only manages the
+# Istio ingress Gateway, the VirtualService routing api.simplefbo.com to
+# mvn-backend-simplefbo-backend:8003, and the backend-clerk-env reference
+# ConfigMap.
 
 # Current environment
 env: production
-# This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
-replicaCount: 1
-# This sets the number of old ReplicaSets to retain to allow rollback
-revisionHistoryLimit: 2
-# Deployment strategy configuration
-strategy:
-  rollingUpdate:
-    maxUnavailable: 1
-    maxSurge: 1
-# This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
-image:
-  repository: davidbslone/simplefbo-api-gateway
-  # This sets the pull policy for images.
-  pullPolicy: IfNotPresent
-  # Overrides the image tag whose default is the chart appVersion.
-  tag: "main-f0f6c61"
-# This is for the secrets for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
-imagePullSecrets: []
-# This is to override the chart name.
-nameOverride: ""
-fullnameOverride: ""
-# This section builds out the service account more information can be found here: https://kubernetes.io/docs/concepts/security/service-accounts/
-serviceAccount:
-  # Specifies whether a service account should be created
-  create: true
-  # Automatically mount a ServiceAccount's API credentials?
-  automount: true
-  # Annotations to add to the service account
-  annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
-  name: ""
-# This is for setting Kubernetes Annotations to a Pod.
-# For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
-podAnnotations: {}
-# This is for setting Kubernetes Labels to a Pod.
-# For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
-podLabels: {}
-podSecurityContext: {}
-# fsGroup: 2000
 
-securityContext: {}
-# This is for setting up a service more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/
-service:
-  # This sets the service type more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types
-  type: ClusterIP
-  # This sets the ports more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#field-spec-ports
-  port: 3000
-resources:
-  requests:
-    cpu: 100m
-    memory: 128Mi
-  limits:
-    cpu: 200m
-    memory: 1Gi
-# This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
-livenessProbe:
-  httpGet:
-    path: /health/live
-    port: 3000
-  initialDelaySeconds: 30
-  periodSeconds: 10
-readinessProbe:
-  httpGet:
-    path: /health/ready
-    port: 3000
-  initialDelaySeconds: 5
-  periodSeconds: 5
-startupProbe:
-  httpGet:
-    path: /health/startup
-    port: 3000
-  initialDelaySeconds: 10
-  periodSeconds: 5
-  failureThreshold: 30
-# This section is for setting up autoscaling more information can be found here: https://kubernetes.io/docs/concepts/workloads/autoscaling/
-autoscaling:
+# Clerk / backend auth env (required by simplefbo-backend after gateway cutover).
+# These keys must exist on the secret referenced below (same keys used historically
+# by api-gateway). Copy the env block from templates/backend-clerk-env.yaml into
+# simplefbo-backend-helm if it is not already present.
+backendClerk:
   enabled: true
-  minReplicas: 1
-  maxReplicas: 10
-  targetCPUUtilizationPercentage: 85
-  # targetMemoryUtilizationPercentage: 80
-# Additional volumes on the output Deployment definition.
-volumes:
-  - name: minio-ca
-    configMap:
-      name: minio-ca-cert
-# Additional volumeMounts on the output Deployment definition.
-volumeMounts:
-  - name: minio-ca
-    mountPath: /etc/ssl/certs/minio
-    readOnly: true
-nodeSelector: {}
-tolerations: []
-affinity: {}
-# PostgreSQL configuration
-postgresql:
-  # Enable PostgreSQL secret creation
-  enabled: true
-  # Use existing secret instead of creating new one
-  existingSecret: "gateway-pg"
-# OpenTelemetry configuration
-# For Node.js apps, you need to install @opentelemetry/sdk-node and related packages
-# and set up your instrumentation file. See: https://opentelemetry.io/docs/instrumentation/js/
-opentelemetry:
-  # Enable OpenTelemetry instrumentation
-  enabled: true
-  # Service name for tracing
-  serviceName: "simplefbo-api-gateway"
-  # OTLP endpoint (OTLP/HTTP exporter on port 4318, or OTLP/gRPC on port 4317)
-  # Example: "http://otel-collector:4318" or "http://otel-collector.observability.svc.cluster.local:4318"
-  otlpEndpoint: "http://tempo.monitoring.svc.cluster.local:4317"
-  # Additional environment variables for OpenTelemetry
-  # Uncomment and customize as needed for your setup:
-  env:
-    OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
-    # Optionally enable specific exporters if your app is instrumented:
-    # OTEL_TRACES_EXPORTER: "otlp"
-    # OTEL_METRICS_EXPORTER: "otlp"
-    # OTEL_LOGS_EXPORTER: "otlp"
-    # OTEL_RESOURCE_ATTRIBUTES: "service.name=simplefbo-api-gateway,service.version=1.0.0"
-    # OTEL_PROPAGATORS: "tracecontext,baggage"
-    # NODE_OPTIONS: "--require ./opentelemetry.js"
+  existingSecret: gateway-pg
+  # Env var names injected for documentation / optional Secret mirror
+  keys:
+    CLERK_JWT_KEY: CLERK_JWT_KEY
+    CLERK_WEBHOOK_SECRET: CLERK_WEBHOOK_SECRET

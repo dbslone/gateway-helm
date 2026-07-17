@@ -1,0 +1,33 @@
+{{- /*
+  Env block for simplefbo-backend Deployment.
+  Applied when backendClerk.enabled is true as an annotated ConfigMap so operators
+  can sync these secretKeyRefs into simplefbo-backend-helm. The api-gateway
+  Deployment already mounts the same keys from gateway-pg.
+*/ -}}
+{{- if .Values.backendClerk.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: simplefbo-backend-clerk-env
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "gateway-helm.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend-clerk-env
+  annotations:
+    simplefbo.com/purpose: |
+      Reference env for mvn-backend / simplefbo-backend. Add matching env entries
+      to the backend Deployment (secret {{ .Values.backendClerk.existingSecret }}).
+data:
+  # Rendered as a ready-to-paste Deployment env fragment (YAML).
+  deployment-env.yaml: |
+    - name: CLERK_JWT_KEY
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.backendClerk.existingSecret }}
+          key: {{ .Values.backendClerk.keys.CLERK_JWT_KEY }}
+    - name: CLERK_WEBHOOK_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.backendClerk.existingSecret }}
+          key: {{ .Values.backendClerk.keys.CLERK_WEBHOOK_SECRET }}
+{{- end }}

@@ -16,47 +16,82 @@ spec:
       {{- include "istio.corsPolicy" . | nindent 6 }}
       route:
         - destination:
-            host: api-gateway
+            host: mvn-backend-simplefbo-backend.simplefbo.svc.cluster.local
             port:
-              number: 3000
+              number: 8003
+    - match:
+        - uri:
+            prefix: /subscriptions
+      {{- include "istio.corsPolicy" . | nindent 6 }}
+      route:
+        - destination:
+            host: mvn-backend-simplefbo-backend.simplefbo.svc.cluster.local
+            port:
+              number: 8003
     - match:
         - uri:
             prefix: /user
       {{- include "istio.corsPolicy" . | nindent 6 }}
       route:
         - destination:
-            host: api-gateway
+            host: mvn-backend-simplefbo-backend.simplefbo.svc.cluster.local
             port:
-              number: 3000
+              number: 8003
+    - match:
+        - uri:
+            prefix: /admin
+      {{- include "istio.corsPolicy" . | nindent 6 }}
+      route:
+        - destination:
+            host: mvn-backend-simplefbo-backend.simplefbo.svc.cluster.local
+            port:
+              number: 8003
     - match:
         - uri:
             prefix: /squawk
       {{- include "istio.corsPolicy" . | nindent 6 }}
       route:
         - destination:
-            host: api-gateway
+            host: mvn-backend-simplefbo-backend.simplefbo.svc.cluster.local
             port:
-              number: 3000
+              number: 8003
     - match:
         - uri:
             prefix: /squawkLog
       {{- include "istio.corsPolicy" . | nindent 6 }}
       route:
         - destination:
-            host: api-gateway
+            host: mvn-backend-simplefbo-backend.simplefbo.svc.cluster.local
             port:
-              number: 3000
+              number: 8003
+    - match:
+        - uri:
+            prefix: /aircraft
+      {{- include "istio.corsPolicy" . | nindent 6 }}
+      route:
+        - destination:
+            host: mvn-backend-simplefbo-backend.simplefbo.svc.cluster.local
+            port:
+              number: 8003
     - match:
         - uri:
             prefix: /signup
       {{- include "istio.corsPolicy" . | nindent 6 }}
       route:
         - destination:
-            host: api-gateway
+            host: mvn-backend-simplefbo-backend.simplefbo.svc.cluster.local
             port:
-              number: 3000
+              number: 8003
+    - match:
+        - uri:
+            prefix: /actuator
+      route:
+        - destination:
+            host: mvn-backend-simplefbo-backend.simplefbo.svc.cluster.local
+            port:
+              number: 8003
     - route:
         - destination:
-            host: api-gateway
+            host: mvn-backend-simplefbo-backend.simplefbo.svc.cluster.local
             port:
-              number: 3000
+              number: 8003

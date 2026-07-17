@@ -40,17 +40,6 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
-{{/*
-Create the name of the service account to use
-*/}}
-{{- define "gateway-helm.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "gateway-helm.fullname" .) .Values.serviceAccount.name }}
-{{- else }}
-{{- default "default" .Values.serviceAccount.name }}
-{{- end }}
-{{- end }}
-
 {{- define "simplefbo-api-gateway.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}

@@ -1,4 +1,23 @@
-# API-GATEWAY HELM CHART
+# API-GATEWAY HELM CHART (ingress only)
+
+The Node.js api-gateway pod has been **removed**. API traffic terminates on
+**mvn-backend** (`mvn-backend-simplefbo-backend:8003`). See
+[`mvn-backend/CUTOVER.md`](../mvn-backend/CUTOVER.md).
+
+This chart now only manages:
+
+- Istio `Gateway` `api-gateway` (namespace `istio-ingress`) — the cluster ingress
+  listener (HTTP/HTTPS, TLS hosts)
+- `VirtualService` `api-gateway-vs` — routes `api.simplefbo.com` / `api.dbslone.com`
+  to `mvn-backend-simplefbo-backend.simplefbo.svc.cluster.local:8003`
+- ConfigMap `simplefbo-backend-clerk-env` — reference env fragment for the backend
+
+### Backend Clerk env
+
+`values.yaml` → `backendClerk` enables ConfigMap `simplefbo-backend-clerk-env`, which
+contains a pasteable Deployment `env` fragment for `CLERK_JWT_KEY` and
+`CLERK_WEBHOOK_SECRET` (from secret `gateway-pg` by default). Add those entries to
+the **simplefbo-backend** Deployment in `simplefbo-backend-helm`.
 
 ## IMPORTANT
 The `Gateway` defined in this project should be the only one. When new services need to be added you should add under the ports and define the VirtualService in the applications helm project.
@@ -7,8 +26,6 @@ The `Gateway` defined in this project should be the only one. When new services 
 - Use the command ` helm package ./charts/simplefbo-api-gateway` and push to github
 
 ## Rollback Instructions (ArgoCD)
-
-This chart is configured with `revisionHistoryLimit: 2` to enable quick rollbacks. Here are the different ways to rollback when using ArgoCD:
 
 ### Method 1: ArgoCD UI (Recommended)
 1. Open ArgoCD UI and navigate to your application
@@ -29,20 +46,7 @@ argocd app rollback <app-name>
 argocd app rollback <app-name> <revision-number>
 ```
 
-### Method 3: kubectl (Fastest - Direct Kubernetes)
-```bash
-# Rollback to previous deployment revision
-kubectl rollout undo deployment/<deployment-name>
-
-# Rollback to specific revision
-kubectl rollout history deployment/<deployment-name>
-kubectl rollout undo deployment/<deployment-name> --to-revision=<n>
-
-# Check rollback status
-kubectl rollout status deployment/<deployment-name>
-```
-
-### Method 4: Helm (If managing outside ArgoCD)
+### Method 3: Helm (If managing outside ArgoCD)
 ```bash
 # List release history
 helm history <release-name>
@@ -54,20 +58,6 @@ helm rollback <release-name>
 helm rollback <release-name> <revision-number>
 ```
 
-### Rollback Benefits with revisionHistoryLimit: 2
-- **Instant rollback**: Previous ReplicaSet is kept ready for immediate activation
-- **No image re-pulling**: Uses cached images from previous deployment
-- **Faster recovery**: Avoids Helm chart re-rendering and ArgoCD sync delays
-- **Clean environment**: Automatically cleans up old ReplicaSets beyond the limit
-
-### Post-Rollback Verification
-```bash
-# Check pod status
-kubectl get pods -l app.kubernetes.io/name=gateway
-
-# Check ReplicaSet status
-kubectl get rs -l app.kubernetes.io/name=gateway
-
-# Check application health
-kubectl get pods -l app.kubernetes.io/name=gateway -o wide
-```
+Note: rolling back past chart `0.2.0` restores the api-gateway Deployment/Service —
+only do that intentionally (it also requires the `gateway-pg` secret and the
+`davidbslone/simplefbo-api-gateway` image to still be available).
