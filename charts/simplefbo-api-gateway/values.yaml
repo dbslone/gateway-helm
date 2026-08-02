@@ -36,7 +36,7 @@ backendClerk:
 #      at deploy time — do not commit a real value here. The same value must be
 #      configured wherever the client (iOS app) sends the header from.
 telemetryIngest:
-  enabled: false
+  enabled: true
   host: otel.dbslone.com
   tempo:
     service: tempo.monitoring.svc.cluster.local
