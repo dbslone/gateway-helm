@@ -1,0 +1,34 @@
+{{- if .Values.telemetryIngest.enabled }}
+# Routes external OTLP/HTTP trace ingest to the existing Tempo instance in the
+# `monitoring` namespace, so clients outside the cluster (e.g. the iOS app) can report
+# telemetry into the same Grafana/Prometheus/Tempo stack mvn-backend already uses —
+# without exposing Tempo's query API or any dashboard UI. Tempo's OTLP receiver has no
+# auth of its own, so only requests carrying the shared-secret header are routed through;
+# everything else (wrong path, missing/wrong header) gets a flat 403.
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: telemetry-ingest-vs
+  namespace: simplefbo
+spec:
+  hosts:
+    - {{ .Values.telemetryIngest.host | quote }}
+  gateways:
+    - istio-ingress/api-gateway
+  http:
+    - match:
+        - uri:
+            prefix: /v1/traces
+          headers:
+            x-telemetry-key:
+              exact: {{ .Values.telemetryIngest.sharedSecret | quote }}
+      route:
+        - destination:
+            host: {{ .Values.telemetryIngest.tempo.service | quote }}
+            port:
+              number: {{ .Values.telemetryIngest.tempo.httpPort }}
+    - directResponse:
+        status: 403
+        body:
+          string: "forbidden"
+{{- end }}

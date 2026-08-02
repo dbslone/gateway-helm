@@ -20,3 +20,25 @@ backendClerk:
   keys:
     CLERK_JWT_KEY: CLERK_JWT_KEY
     CLERK_WEBHOOK_SECRET: CLERK_WEBHOOK_SECRET
+
+# Exposes ONLY Tempo's OTLP/HTTP trace-ingest path externally (no Grafana/Prometheus/
+# Tempo UI or query API) so clients outside the cluster can report telemetry into the
+# existing kube-prometheus-stack / Tempo instance (Helm release "monitoring") that
+# mvn-backend already sends traces to.
+#
+# Before enabling:
+#   1. Confirm Tempo's OTLP HTTP receiver is actually on (mvn-backend only proves gRPC
+#      :4317 works) — check with `kubectl -n monitoring get cm <tempo-release>  -o yaml`
+#      or the Tempo Helm values, and enable receivers.otlp.protocols.http if it's off.
+#   2. Confirm the `simplefbo-cf-tls` cert covers this host (SAN or wildcard) — if it's
+#      a fixed SAN list, it needs reissuing to include telemetryIngest.host.
+#   3. Set a real secret, e.g. `--set telemetryIngest.sharedSecret=$(openssl rand -hex 32)`
+#      at deploy time — do not commit a real value here. The same value must be
+#      configured wherever the client (iOS app) sends the header from.
+telemetryIngest:
+  enabled: false
+  host: otel.dbslone.com
+  tempo:
+    service: tempo.monitoring.svc.cluster.local
+    httpPort: 4318
+  sharedSecret: ""
