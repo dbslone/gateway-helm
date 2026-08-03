@@ -26,19 +26,14 @@ backendClerk:
 # existing kube-prometheus-stack / Tempo instance (Helm release "monitoring") that
 # mvn-backend already sends traces to.
 #
-# Before enabling:
-#   1. Confirm Tempo's OTLP HTTP receiver is actually on (mvn-backend only proves gRPC
-#      :4317 works) — check with `kubectl -n monitoring get cm <tempo-release>  -o yaml`
-#      or the Tempo Helm values, and enable receivers.otlp.protocols.http if it's off.
-#   2. Confirm the `simplefbo-cf-tls` cert covers this host (SAN or wildcard) — if it's
-#      a fixed SAN list, it needs reissuing to include telemetryIngest.host.
-#   3. Set a real secret, e.g. `--set telemetryIngest.sharedSecret=$(openssl rand -hex 32)`
-#      at deploy time — do not commit a real value here. The same value must be
-#      configured wherever the client (iOS app) sends the header from.
+# sharedSecret is committed here in plaintext (matches how backendClerk's secret refs
+# are handled elsewhere in this chart) — acceptable for a private solo repo, but if this
+# repo is ever made public or shared, rotate it first (regenerate with
+# `openssl rand -hex 32`, update here, and update the client sending X-Telemetry-Key).
 telemetryIngest:
   enabled: true
   host: otel.dbslone.com
   tempo:
     service: tempo.monitoring.svc.cluster.local
     httpPort: 4318
-  sharedSecret: ""
+  sharedSecret: "0166652ffbdba2b4ed4365a95716a66e71c6ac7fb10941c6478e82eff05ad349"
