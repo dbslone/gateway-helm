@@ -2,7 +2,11 @@
 # Render the Stalwart chart and assert ArgoCD-ready defaults.
 set -euo pipefail
 
-CHART="$(cd "$(dirname "$0")/../charts/stalwart" && pwd)"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+CHART="$ROOT/charts/stalwart"
+APP_FILE="$ROOT/applications/stalwart.yaml"
+# Helm release names (ArgoCD --name-template) must be DNS-1123, lowercase, ≤53 chars.
+HELM_RELEASE_RE='^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$'
 
 if ! command -v helm >/dev/null 2>&1; then
   echo "helm is required to run this test" >&2
@@ -29,6 +33,39 @@ assert_not_contains() {
     fail "did not expect to find: $needle"
   fi
 }
+
+# Reported: ArgoCD "Unable to create application" because helm --name-template
+# was "Stalwart". That name must never be used as the Application name or
+# helm.releaseName; helm itself rejects it before templates render.
+if [[ ! -f "$APP_FILE" ]]; then
+  fail "missing ArgoCD Application manifest: $APP_FILE"
+fi
+app_name="$(awk '$1=="name:" {print $2; exit}' "$APP_FILE")"
+release_name="$(awk '$1=="releaseName:" {print $2; exit}' "$APP_FILE")"
+if [[ -z "$release_name" ]]; then
+  fail "applications/stalwart.yaml must set spec.source.helm.releaseName so ArgoCD does not pass the UI Application name (e.g. Stalwart) to helm --name-template"
+fi
+assert_helm_release_name() {
+  local name="$1"
+  local label="$2"
+  if [[ -z "$name" || ${#name} -gt 53 ]] || ! [[ "$name" =~ $HELM_RELEASE_RE ]]; then
+    fail "$label '$name' is not a valid Helm release name. ArgoCD error: invalid release name, must match regex ^[a-z0-9]([-a-z0-9]*[a-z0-9])? and length must not be longer than 53"
+  fi
+}
+assert_helm_release_name "$app_name" "Application metadata.name"
+assert_helm_release_name "$release_name" "helm.releaseName"
+# Reported: creating the app fails because ArgoCD already has gateway-helm connected
+# as HTTPS for simplefbo-api-gateway; git@... is a different unconnected repo URL.
+repo_url="$(awk '$1=="repoURL:" {print $2; exit}' "$APP_FILE")"
+if [[ "$repo_url" != "https://github.com/dbslone/gateway-helm.git" ]]; then
+  fail "Application repoURL is '$repo_url'; ArgoCD will not reuse the connected simplefbo-api-gateway repo unless this is https://github.com/dbslone/gateway-helm.git (git@... is treated as a different, unconnected repo)"
+fi
+if helm template Stalwart "$CHART" --namespace mail >/tmp/stalwart-helm-bad-release.txt 2>&1; then
+  fail "helm accepted release name 'Stalwart'; expected the invalid-release-name error ArgoCD reported"
+fi
+if ! grep -q 'invalid release name' /tmp/stalwart-helm-bad-release.txt; then
+  fail "expected helm to reject 'Stalwart' as an invalid release name"
+fi
 
 rendered="$(helm template stalwart "$CHART" --namespace mail)"
 

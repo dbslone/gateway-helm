@@ -1,3 +1,9 @@
+# Application Name and Helm Release Name must both be lowercase `stalwart`.
+# Helm rejects names like "Stalwart" (`--name-template Stalwart`) with:
+#   invalid release name, must match regex ^[a-z0-9]([-a-z0-9]*[a-z0-9])?...
+# Creating the app in the ArgoCD UI as "Stalwart" hits that error because
+# ArgoCD uses the Application name as the Helm release name unless
+# spec.source.helm.releaseName is set.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -8,7 +14,10 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: git@github.com:dbslone/gateway-helm.git
+    # Must match the URL already connected in ArgoCD for simplefbo-api-gateway.
+    # git@github.com:dbslone/gateway-helm.git is a different repo as far as ArgoCD
+    # is concerned and will fail create if only the HTTPS remote is registered.
+    repoURL: https://github.com/dbslone/gateway-helm.git
     targetRevision: HEAD
     path: charts/stalwart
     helm:

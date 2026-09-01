@@ -27,7 +27,16 @@ This chart now only manages:
      --from-literal=STALWART_RECOVERY_ADMIN='admin:choose-a-strong-password'
    ```
 
-2. Register the app with ArgoCD (once):
+2. Register the app with ArgoCD (once). Use the **same repository URL** as
+   simplefbo-api-gateway (`https://github.com/dbslone/gateway-helm.git`). Do not
+   add a new repo and do not `helm install`. Application name **and** Helm
+   release name must be lowercase `stalwart`.
+
+   UI: New App → pick the existing `gateway-helm` repo → PATH `charts/stalwart`
+   → Application Name `stalwart` → Helm Release Name `stalwart` → namespace
+   `mail`.
+
+   Or apply:
 
    ```bash
    kubectl apply -f applications/stalwart.yaml
