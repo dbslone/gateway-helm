@@ -49,11 +49,12 @@ This chart now only manages:
    `simplefbo-cf-tls`). Add those hostnames to the Cloudflare origin cert if they
    are not already covered.
 
-4. SMTP/IMAP are a dedicated LoadBalancer (`stalwart-mail`), not Istio and not
-   Cloudflare proxy. Point MX/A for both domains at that LB IP with **DNS-only**
-   (grey cloud). After the pod is up, open `/admin`, finish setup, then add
-   domains `dbslone.com` and `simplefbo.com` (or set `domainsApply.enabled: true`
-   to upsert them on sync). Configure SPF, DKIM, and DMARC in the WebUI.
+4. SMTP/IMAP stay off Istio. `stalwart-mail` is a LoadBalancer (`10.0.1.5` on
+   this host) plus `externalIPs: [192.168.7.105]` so ArgoCD programs the
+   node-LAN DNAT (UDM → `192.168.7.105` → pod). Do not add host iptables for
+   those ports. Point MX/A at the **public WAN IP** (grey cloud / DNS-only).
+   After the pod is up, open `/admin`, add `dbslone.com` and `simplefbo.com`
+   (or set `domainsApply.enabled: true`), then SPF, DKIM, and DMARC in the WebUI.
 
 `config.json` only names the RocksDB DataStore. Everything else lives in the
 database after bootstrap — ArgoCD is not meant to reconcile it.

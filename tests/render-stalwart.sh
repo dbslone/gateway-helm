@@ -124,6 +124,8 @@ assert_contains "$rendered" "kind: PeerAuthentication"
 assert_contains "$rendered" "mode: DISABLE"
 assert_contains "$rendered" "name: stalwart-mail"
 assert_contains "$rendered" "type: LoadBalancer"
+assert_contains "$rendered" "externalIPs:"
+assert_contains "$rendered" "- 192.168.7.105"
 assert_contains "$rendered" "name: tcp-smtp"
 assert_contains "$rendered" "targetPort: smtp"
 assert_contains "$rendered" "name: tcp-imaps"
@@ -159,6 +161,11 @@ assert_contains "$with_apply" "STALWART_URL"
 assert_contains "$with_apply" "http://stalwart.mail.svc.cluster.local:8080"
 
 # Mail LB and Istio VS can be disabled independently.
+no_extip="$(helm template stalwart "$CHART" --namespace mail \
+  --set mailLoadBalancer.externalIPs=null)"
+assert_contains "$no_extip" "name: stalwart-mail"
+assert_not_contains "$no_extip" "externalIPs:"
+
 minimal="$(helm template stalwart "$CHART" --namespace mail \
   --set mailLoadBalancer.enabled=false \
   --set virtualService.enabled=false)"

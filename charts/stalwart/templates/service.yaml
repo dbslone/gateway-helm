@@ -71,6 +71,10 @@ metadata:
   {{- end }}
 spec:
   type: {{ .Values.mailLoadBalancer.type }}
+  {{- with .Values.mailLoadBalancer.externalIPs }}
+  externalIPs:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   selector:
     {{- include "stalwart.selectorLabels" . | nindent 4 }}
   ports:

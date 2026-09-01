@@ -75,9 +75,16 @@ service:
 
 # Public L4 exposure for SMTP/IMAP. Do not put these through Istio or
 # Cloudflare proxy — MX hostnames must be DNS-only (grey cloud).
+#
+# MetalLB assigns 10.0.1.5 (internal to the server). The UDM only reaches the
+# node LAN IP, so externalIPs programs kube-proxy/Cilium DNAT:
+# 192.168.7.105:{25,465,587,993} → the Stalwart pod. Managed by ArgoCD; do not
+# add host iptables for this hop.
 mailLoadBalancer:
   enabled: true
   type: LoadBalancer
+  externalIPs:
+    - 192.168.7.105
   annotations: {}
   ports:
     - name: tcp-smtp
