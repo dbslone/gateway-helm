@@ -1,0 +1,15 @@
+name: Helm templates
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+jobs:
+  render-stalwart:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: Render Stalwart chart
+        run: tests/render-stalwart.sh

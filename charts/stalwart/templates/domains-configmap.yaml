@@ -1,0 +1,26 @@
+{{- if .Values.domains }}
+{{- $value := dict }}
+{{- range .Values.domains }}
+{{- $id := .name | replace "." "-" }}
+{{- $body := dict "name" .name }}
+{{- if .description }}
+{{- $_ := set $body "description" .description }}
+{{- end }}
+{{- $_ := set $value $id $body }}
+{{- end }}
+{{- $upsert := dict "@type" "upsert" "object" "Domain" "matchOn" (list "name") "value" $value }}
+{{- $content := $upsert | toJson }}
+{{- if .Values.domainsApply.defaultDomain }}
+{{- $ref := printf "#%s" (.Values.domainsApply.defaultDomain | replace "." "-") }}
+{{- $update := dict "@type" "update" "object" "SystemSettings" "value" (dict "defaultDomainId" $ref) }}
+{{- $content = printf "%s\n%s" $content ($update | toJson) }}
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "stalwart.fullname" . }}-domains
+  labels:
+    {{- include "stalwart.labels" . | nindent 4 }}
+data:
+  domains.ndjson: {{ $content | quote }}
+{{- end }}

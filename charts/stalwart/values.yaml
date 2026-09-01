@@ -1,0 +1,135 @@
+# Stalwart mail server (v0.16). config.json only names the DataStore;
+# domains, accounts, TLS, DKIM, and listeners live in RocksDB after bootstrap.
+# See charts/stalwart README notes in gateway-helm/README.md.
+
+image:
+  repository: stalwartlabs/stalwart
+  tag: "v0.16.20"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+nameOverride: ""
+fullnameOverride: ""
+
+# Empty on a single-node install so this pod runs every task and listener.
+role: ""
+pushShard: ""
+
+# Create this Secret in namespace `mail` before the first ArgoCD sync:
+#
+#   kubectl -n mail create secret generic stalwart-recovery-admin \
+#     --from-literal=username=admin \
+#     --from-literal=password='choose-a-strong-password' \
+#     --from-literal=STALWART_RECOVERY_ADMIN='admin:choose-a-strong-password'
+#
+# Sign in at https://mail.dbslone.com/admin then disable recoveryAdmin.
+recoveryAdmin:
+  enabled: true
+  existingSecret: stalwart-recovery-admin
+  username: admin
+  password: ""
+
+recoveryMode:
+  enabled: false
+  port: 8080
+  logLevel: info
+
+extraEnv: {}
+extraSecretEnv: {}
+
+# config.json — DataStore only. Do not put domains here.
+config:
+  "@type": RocksDb
+  path: /var/lib/stalwart
+
+# Mail domains managed after bootstrap (WebUI or stalwart-cli apply).
+# The chart upserts these when domains.apply.enabled is true.
+domains:
+  - name: dbslone.com
+    description: Personal
+  - name: simplefbo.com
+    description: SimpleFBO
+
+domainsApply:
+  enabled: false
+  image:
+    repository: ghcr.io/stalwartlabs/cli
+    tag: latest
+    pullPolicy: IfNotPresent
+  defaultDomain: dbslone.com
+
+service:
+  type: ClusterIP
+  ports:
+    smtp: 25
+    smtps: 465
+    submission: 587
+    imap: 143
+    imaps: 993
+    pop3: 110
+    pop3s: 995
+    sieve: 4190
+    http: 80
+    https: 443
+    mgmt: 8080
+
+# Public L4 exposure for SMTP/IMAP. Do not put these through Istio or
+# Cloudflare proxy — MX hostnames must be DNS-only (grey cloud).
+mailLoadBalancer:
+  enabled: true
+  type: LoadBalancer
+  annotations: {}
+  ports:
+    - name: tcp-smtp
+      port: 25
+      targetPort: smtp
+    - name: tcp-smtps
+      port: 465
+      targetPort: smtps
+    - name: tcp-submission
+      port: 587
+      targetPort: submission
+    - name: tcp-imaps
+      port: 993
+      targetPort: imaps
+
+# Admin UI / JMAP through the existing Istio Gateway (HTTPS 443).
+virtualService:
+  enabled: true
+  gateway: istio-ingress/api-gateway
+  hosts:
+    - mail.dbslone.com
+    - mail.simplefbo.com
+
+persistence:
+  enabled: true
+  accessMode: ReadWriteOnce
+  storageClass: ""
+  size: 20Gi
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    memory: 2Gi
+
+podSecurityContext:
+  fsGroup: 2000
+  runAsUser: 2000
+  runAsGroup: 2000
+
+# NET_BIND_SERVICE is required so UID 2000 can bind privileged mail ports.
+containerSecurityContext:
+  runAsNonRoot: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: [ALL]
+    add: [NET_BIND_SERVICE]
+  seccompProfile:
+    type: RuntimeDefault
+
+podAnnotations: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}

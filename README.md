@@ -12,6 +12,43 @@ This chart now only manages:
   to `mvn-backend-simplefbo-backend.simplefbo.svc.cluster.local:8003`
 - ConfigMap `simplefbo-backend-clerk-env` — reference env fragment for the backend
 
+## Stalwart (mail)
+
+`charts/stalwart` deploys Stalwart in namespace `mail` so you can host mail for
+`dbslone.com` and `simplefbo.com`. ArgoCD Application: `applications/stalwart.yaml`.
+
+1. Create the recovery-admin Secret (once, not in git):
+
+   ```bash
+   kubectl create namespace mail --dry-run=client -o yaml | kubectl apply -f -
+   kubectl -n mail create secret generic stalwart-recovery-admin \
+     --from-literal=username=admin \
+     --from-literal=password='choose-a-strong-password' \
+     --from-literal=STALWART_RECOVERY_ADMIN='admin:choose-a-strong-password'
+   ```
+
+2. Register the app with ArgoCD (once):
+
+   ```bash
+   kubectl apply -f applications/stalwart.yaml
+   ```
+
+3. Admin UI is `https://mail.dbslone.com` and `https://mail.simplefbo.com` through
+   the existing Istio Gateway (`istio-ingress/api-gateway`, TLS secret
+   `simplefbo-cf-tls`). Add those hostnames to the Cloudflare origin cert if they
+   are not already covered.
+
+4. SMTP/IMAP are a dedicated LoadBalancer (`stalwart-mail`), not Istio and not
+   Cloudflare proxy. Point MX/A for both domains at that LB IP with **DNS-only**
+   (grey cloud). After the pod is up, open `/admin`, finish setup, then add
+   domains `dbslone.com` and `simplefbo.com` (or set `domainsApply.enabled: true`
+   to upsert them on sync). Configure SPF, DKIM, and DMARC in the WebUI.
+
+`config.json` only names the RocksDB DataStore. Everything else lives in the
+database after bootstrap — ArgoCD is not meant to reconcile it.
+
+## IMPORTANT
+
 ### Backend Clerk env
 
 `values.yaml` → `backendClerk` enables ConfigMap `simplefbo-backend-clerk-env`, which

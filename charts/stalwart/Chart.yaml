@@ -1,29 +1,10 @@
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: stalwart
-  namespace: argocd
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
-spec:
-  project: default
-  source:
-    repoURL: git@github.com:dbslone/gateway-helm.git
-    targetRevision: HEAD
-    path: charts/stalwart
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: mail
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-  ignoreDifferences:
-    # Stalwart writes almost all of its own configuration into RocksDB after
-    # bootstrap. Nothing in the chart should be reconciled against that.
-    - group: ""
-      kind: PersistentVolumeClaim
-      jsonPointers:
-        - /spec/resources/requests/storage
+apiVersion: v2
+name: stalwart
+description: Stalwart mail server for dbslone.com and simplefbo.com
+type: application
+version: 0.1.0
+appVersion: "v0.16.20"
+home: https://stalw.art
+sources:
+  - https://github.com/stalwartlabs/stalwart
+  - https://stalw.art/docs/cluster/orchestration/kubernetes/

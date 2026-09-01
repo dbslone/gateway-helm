@@ -1,0 +1,48 @@
+{{- if .Values.virtualService.enabled }}
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: {{ include "stalwart.fullname" . }}
+  labels:
+    {{- include "stalwart.labels" . | nindent 4 }}
+spec:
+  hosts:
+    {{- range .Values.virtualService.hosts }}
+    - {{ . | quote }}
+    {{- end }}
+  gateways:
+    - {{ .Values.virtualService.gateway }}
+  http:
+    - route:
+        - destination:
+            host: {{ include "stalwart.mgmtHost" . }}
+            port:
+              number: {{ .Values.service.ports.mgmt }}
+---
+# Mesh mTLS is disabled for this workload: the pod has no sidecar (SMTP is
+# server-first) and the Istio ingress gateway must speak plaintext HTTP to :8080.
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: {{ include "stalwart.fullname" . }}
+  labels:
+    {{- include "stalwart.labels" . | nindent 4 }}
+spec:
+  host: {{ include "stalwart.mgmtHost" . }}
+  trafficPolicy:
+    tls:
+      mode: DISABLE
+---
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: {{ include "stalwart.fullname" . }}
+  labels:
+    {{- include "stalwart.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "stalwart.selectorLabels" . | nindent 6 }}
+  mtls:
+    mode: DISABLE
+{{- end }}

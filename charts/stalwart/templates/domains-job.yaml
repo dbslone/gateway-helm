@@ -1,0 +1,53 @@
+{{- if and .Values.domainsApply.enabled .Values.domains }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "stalwart.fullname" . }}-apply-domains
+  labels:
+    {{- include "stalwart.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  backoffLimit: 20
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        {{- include "stalwart.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: apply-domains
+      annotations:
+        sidecar.istio.io/inject: "false"
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: apply
+          image: "{{ .Values.domainsApply.image.repository }}:{{ .Values.domainsApply.image.tag }}"
+          imagePullPolicy: {{ .Values.domainsApply.image.pullPolicy }}
+          args:
+            - apply
+            - --file
+            - /plan/domains.ndjson
+          env:
+            - name: STALWART_URL
+              value: {{ printf "http://%s:%v" (include "stalwart.mgmtHost" .) .Values.service.ports.mgmt | quote }}
+            - name: STALWART_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "stalwart.envSecretName" . }}
+                  key: username
+            - name: STALWART_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "stalwart.envSecretName" . }}
+                  key: password
+          volumeMounts:
+            - name: plan
+              mountPath: /plan
+              readOnly: true
+      volumes:
+        - name: plan
+          configMap:
+            name: {{ include "stalwart.fullname" . }}-domains
+{{- end }}
