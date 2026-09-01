@@ -124,8 +124,15 @@ assert_contains "$rendered" "kind: PeerAuthentication"
 assert_contains "$rendered" "mode: DISABLE"
 assert_contains "$rendered" "name: stalwart-mail"
 assert_contains "$rendered" "type: LoadBalancer"
-assert_contains "$rendered" "externalIPs:"
-assert_contains "$rendered" "- 192.168.7.105"
+# Reported: live spec.externalIPs is empty, ArgoCD on latest commit has no
+# diff, and `nc 192.168.7.105 25` is connection refused. Do not use
+# Service.externalIPs as the LAN path.
+assert_not_contains "$rendered" "externalIPs:"
+assert_contains "$rendered" "hostPort: 25"
+assert_contains "$rendered" "hostPort: 465"
+assert_contains "$rendered" "hostPort: 587"
+assert_contains "$rendered" "hostPort: 993"
+assert_contains "$rendered" "kubernetes.io/hostname: serv1-kube"
 assert_contains "$rendered" "name: tcp-smtp"
 assert_contains "$rendered" "targetPort: smtp"
 assert_contains "$rendered" "name: tcp-imaps"
@@ -161,10 +168,9 @@ assert_contains "$with_apply" "STALWART_URL"
 assert_contains "$with_apply" "http://stalwart.mail.svc.cluster.local:8080"
 
 # Mail LB and Istio VS can be disabled independently.
-no_extip="$(helm template stalwart "$CHART" --namespace mail \
-  --set mailLoadBalancer.externalIPs=null)"
-assert_contains "$no_extip" "name: stalwart-mail"
-assert_not_contains "$no_extip" "externalIPs:"
+no_hostports="$(helm template stalwart "$CHART" --namespace mail --set hostPorts.enabled=false)"
+assert_contains "$no_hostports" "name: stalwart-mail"
+assert_not_contains "$no_hostports" "hostPort: 25"
 
 minimal="$(helm template stalwart "$CHART" --namespace mail \
   --set mailLoadBalancer.enabled=false \

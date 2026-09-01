@@ -76,15 +76,14 @@ service:
 # Public L4 exposure for SMTP/IMAP. Do not put these through Istio or
 # Cloudflare proxy — MX hostnames must be DNS-only (grey cloud).
 #
-# MetalLB assigns 10.0.1.5 (internal to the server). The UDM only reaches the
-# node LAN IP, so externalIPs programs kube-proxy/Cilium DNAT:
-# 192.168.7.105:{25,465,587,993} → the Stalwart pod. Managed by ArgoCD; do not
-# add host iptables for this hop.
+# MetalLB still assigns 10.0.1.5 (internal to the server). The UDM only
+# reaches 192.168.7.105, so hostPorts bind those ports on the node LAN IP.
+# Do not use Service.externalIPs: this cluster drops that field (live Service
+# stays empty, ArgoCD shows no diff, nc to 192.168.7.105:25 is refused).
+# Pin the pod to the node that owns 192.168.7.105 (`kubectl get nodes -o wide`).
 mailLoadBalancer:
   enabled: true
   type: LoadBalancer
-  externalIPs:
-    - 192.168.7.105
   annotations: {}
   ports:
     - name: tcp-smtp
@@ -99,6 +98,13 @@ mailLoadBalancer:
     - name: tcp-imaps
       port: 993
       targetPort: imaps
+
+hostPorts:
+  enabled: true
+  smtp: 25
+  smtps: 465
+  submission: 587
+  imaps: 993
 
 # Admin UI / JMAP through the existing Istio Gateway (HTTPS 443).
 virtualService:
@@ -137,6 +143,8 @@ containerSecurityContext:
     type: RuntimeDefault
 
 podAnnotations: {}
-nodeSelector: {}
+# Must be the node whose Internal/External IP is 192.168.7.105.
+nodeSelector:
+  kubernetes.io/hostname: serv1-kube
 tolerations: []
 affinity: {}
