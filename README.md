@@ -48,9 +48,11 @@ This chart now only manages:
    the existing Istio Gateway (`istio-ingress/api-gateway`, TLS secret
    `simplefbo-cf-tls`). Add those hostnames to the Cloudflare origin cert if they
    are not already covered. Keep Helm Values/Parameters empty on the live
-   ArgoCD app so git chart values render; auto-sync is off — Hard Refresh then
-   Sync when you intend to apply git. `applications/stalwart.yaml` is a
-   template; the live app was created in the UI.
+   ArgoCD app so git chart values render. That Parameters tab stays empty on
+   purpose — CPU and other defaults live in `charts/stalwart/values.yaml` and
+   show up on the **StatefulSet App Diff**, not as Helm parameters. Auto-sync
+   is off; Hard Refresh then Sync when you intend to apply git.
+   `applications/stalwart.yaml` is a template; the live app was created in the UI.
 
 4. SMTP/IMAP stay off Istio. The chart's job is LoadBalancer `stalwart-mail` at
    **`10.0.1.5`** (MetalLB). That is the mail equivalent of Istio's MetalLB IP

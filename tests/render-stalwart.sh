@@ -148,6 +148,52 @@ assert_contains "$rendered" "path: /healthz/ready"
 assert_contains "$rendered" "--config"
 assert_contains "$rendered" "/etc/stalwart/config.json"
 
+# Reported: changing resources.requests.cpu in values.yaml is not reflected
+# in the ArgoCD helm chart diff. That is the bug if the StatefulSet ignores
+# .Values.resources (hardcoded cpu, or values not interpolated). Render must
+# match values.yaml, and --set must replace it.
+values_cpu="$(awk '
+  $1=="resources:" {inres=1; next}
+  inres && /^[^[:space:]]/ {exit}
+  inres && $1=="requests:" {inreq=1; next}
+  inres && $1=="limits:" {inreq=0; next}
+  inreq && $1=="cpu:" {print $2; exit}
+' "$CHART/values.yaml")"
+if [[ -z "$values_cpu" ]]; then
+  fail "charts/stalwart/values.yaml has no resources.requests.cpu"
+fi
+sts_cpu="$(awk '
+  $1=="kind:" && $2=="StatefulSet" {sts=1}
+  sts && /^---$/ {exit}
+  sts && $1=="cpu:" {print $2; exit}
+' <<<"$rendered")"
+if [[ "$sts_cpu" != "$values_cpu" ]]; then
+  fail "reported: values.yaml cpu '$values_cpu' was not inserted into the StatefulSet (got '${sts_cpu:-empty}')"
+fi
+chart_ver="$(awk '$1=="version:" {print $2; exit}' "$CHART/Chart.yaml")"
+assert_contains "$rendered" "helm.sh/chart: stalwart-${chart_ver}"
+override_cpu="124m"
+override="$(helm template stalwart "$CHART" --namespace mail --set resources.requests.cpu="$override_cpu")"
+override_sts_cpu="$(awk '
+  $1=="kind:" && $2=="StatefulSet" {sts=1}
+  sts && /^---$/ {exit}
+  sts && $1=="cpu:" {print $2; exit}
+' <<<"$override")"
+if [[ "$override_sts_cpu" != "$override_cpu" ]]; then
+  fail "reported: --set resources.requests.cpu=$override_cpu did not appear in the StatefulSet (got '${override_sts_cpu:-empty}')"
+fi
+if [[ "$values_cpu" != "$override_cpu" ]]; then
+  # The override render must not keep the values.yaml cpu on the StatefulSet.
+  override_sts_block="$(awk '
+    $1=="kind:" && $2=="StatefulSet" {sts=1}
+    sts && /^---$/ {exit}
+    sts {print}
+  ' <<<"$override")"
+  if grep -qE "^[[:space:]]+cpu:[[:space:]]+${values_cpu}$" <<<"$override_sts_block"; then
+    fail "reported: StatefulSet still has values.yaml cpu '$values_cpu' after --set resources.requests.cpu=$override_cpu"
+  fi
+fi
+
 # Chart-managed secret when no existingSecret is provided.
 with_password="$(helm template stalwart "$CHART" --namespace mail \
   --set recoveryAdmin.existingSecret= \
