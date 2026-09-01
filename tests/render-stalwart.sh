@@ -54,11 +54,35 @@ assert_helm_release_name() {
 }
 assert_helm_release_name "$app_name" "Application metadata.name"
 assert_helm_release_name "$release_name" "helm.releaseName"
-# Reported: creating the app fails because ArgoCD already has gateway-helm connected
-# as HTTPS for simplefbo-api-gateway; git@... is a different unconnected repo URL.
-repo_url="$(awk '$1=="repoURL:" {print $2; exit}' "$APP_FILE")"
+# Reported: ArgoCD "repository not accessible" / parse
+# " https://github.com/dbslone/gateway-helm": first path segment in URL cannot
+# contain colon. A leading space makes Go treat the value as a relative path.
+repo_url="$(awk '$1=="repoURL:" {
+  sub(/^[[:space:]]*repoURL:[[:space:]]*/, "")
+  gsub(/^["'\'']|["'\'']$/, "")
+  print
+  exit
+}' "$APP_FILE")"
+repo_url_ok() {
+  local url="$1"
+  [[ "$url" == "${url#"${url%%[![:space:]]*}"}" && "$url" == "${url%"${url##*[![:space:]]}"}" ]] || return 1
+  python3 - "$url" <<'PY'
+import sys
+from urllib.parse import urlparse
+url = sys.argv[1]
+parsed = urlparse(url)
+if url != url.strip() or parsed.scheme != "https" or parsed.netloc != "github.com":
+    sys.exit(1)
+PY
+}
+if ! repo_url_ok "$repo_url"; then
+  fail "repoURL '$repo_url' is not usable; ArgoCD error: parse \"${repo_url}\": first path segment in URL cannot contain colon"
+fi
 if [[ "$repo_url" != "https://github.com/dbslone/gateway-helm.git" ]]; then
   fail "Application repoURL is '$repo_url'; ArgoCD will not reuse the connected simplefbo-api-gateway repo unless this is https://github.com/dbslone/gateway-helm.git (git@... is treated as a different, unconnected repo)"
+fi
+if repo_url_ok " https://github.com/dbslone/gateway-helm"; then
+  fail "expected the reported ArgoCD URL (leading space, no .git) to be rejected"
 fi
 if helm template Stalwart "$CHART" --namespace mail >/tmp/stalwart-helm-bad-release.txt 2>&1; then
   fail "helm accepted release name 'Stalwart'; expected the invalid-release-name error ArgoCD reported"
@@ -69,9 +93,20 @@ fi
 
 rendered="$(helm template stalwart "$CHART" --namespace mail)"
 
+# Reported: ArgoCD sync fails with
+# "resource :Namespace is not permitted in project simplefbo".
+# CreateNamespace=true on the Application creates `mail`; the chart must not
+# emit a cluster-scoped Namespace (or other cluster-scoped kinds).
+app_project="$(awk '$1=="project:" {print $2; exit}' "$APP_FILE")"
+if [[ "$app_project" != "simplefbo" ]]; then
+  fail "Application project is '$app_project'; the live app is in project simplefbo"
+fi
+assert_contains "$(cat "$APP_FILE")" "CreateNamespace=true"
 assert_contains "$rendered" "kind: StatefulSet"
-assert_contains "$rendered" "kind: Namespace"
-assert_contains "$rendered" "istio-injection: disabled"
+assert_not_contains "$rendered" "kind: Namespace"
+assert_not_contains "$rendered" "kind: ClusterRole"
+assert_not_contains "$rendered" "kind: ClusterRoleBinding"
+assert_not_contains "$rendered" "kind: CustomResourceDefinition"
 assert_contains "$rendered" "sidecar.istio.io/inject: \"false\""
 assert_contains "$rendered" "name: stalwart-config"
 assert_contains "$rendered" '"@type": "RocksDb"'

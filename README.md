@@ -32,9 +32,11 @@ This chart now only manages:
    add a new repo and do not `helm install`. Application name **and** Helm
    release name must be lowercase `stalwart`.
 
-   UI: New App → pick the existing `gateway-helm` repo → PATH `charts/stalwart`
-   → Application Name `stalwart` → Helm Release Name `stalwart` → namespace
-   `mail`.
+   UI: New App → project `simplefbo` → pick the existing `gateway-helm` repo →
+   PATH `charts/stalwart` → Application Name `stalwart` → Helm Release Name
+   `stalwart` → namespace `mail`. The chart does not create a Namespace
+   (project `simplefbo` forbids it); `CreateNamespace=true` or `kubectl create
+   namespace mail` is enough.
 
    Or apply:
 
