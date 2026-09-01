@@ -23,14 +23,15 @@ spec:
     targetRevision: HEAD
     path: charts/stalwart
     helm:
+      # Live UI app is not this file. Keep Helm Values/Parameters empty so git
+      # chart values render. A pasted values blob hides Chart.yaml / StatefulSet
+      # changes (no Argo diff while git looks different).
       releaseName: stalwart
   destination:
     server: https://kubernetes.default.svc
     namespace: mail
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
+    # Live UI app has auto-sync off. Sync only when you intend to apply git.
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true

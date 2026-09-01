@@ -2,7 +2,7 @@ apiVersion: v2
 name: stalwart
 description: Stalwart mail server for dbslone.com and simplefbo.com
 type: application
-version: 0.1.1
+version: 0.1.2
 appVersion: "v0.16.20"
 home: https://stalw.art
 sources:

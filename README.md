@@ -47,14 +47,26 @@ This chart now only manages:
 3. Admin UI is `https://mail.dbslone.com` and `https://mail.simplefbo.com` through
    the existing Istio Gateway (`istio-ingress/api-gateway`, TLS secret
    `simplefbo-cf-tls`). Add those hostnames to the Cloudflare origin cert if they
-   are not already covered.
+   are not already covered. Keep Helm Values/Parameters empty on the live
+   ArgoCD app so git chart values render; auto-sync is off — Hard Refresh then
+   Sync when you intend to apply git. `applications/stalwart.yaml` is a
+   template; the live app was created in the UI.
 
-4. SMTP/IMAP stay off Istio. `stalwart-mail` is a LoadBalancer on `10.0.1.5`.
-   The UDM reaches **`192.168.7.105`**, so the StatefulSet uses `hostPort` for
-   25/465/587/993 and is pinned to node `serv1-kube`. Confirm the node name
-   with `kubectl get nodes -o wide`. After push, ArgoCD should show a
-   StatefulSet diff — Sync it (auto-sync is off). Then `nc -vz 192.168.7.105 25`.
-   Point MX/A at the public WAN IP (grey cloud). Add domains in `/admin`.
+4. SMTP/IMAP stay off Istio. The chart's job is LoadBalancer `stalwart-mail` at
+   **`10.0.1.5`** (MetalLB). That is the mail equivalent of Istio's MetalLB IP
+   (`istio-ingress` → `10.0.1.4`). Do not add `hostPort`, `nodeSelector`, or
+   `externalIPs` to this chart.
+
+   The UDM only talks to node LAN **`192.168.7.105`**. HTTPS already works
+   because `istio-ingress` is a LoadBalancer **plus** `spec.externalIPs:
+   ["192.168.7.105"]` for 80/443 — the node does not listen on 443. Copy that
+   hop for **25/465/587/993 → `10.0.1.5`** on the UDM and/or the same
+   node-LAN Service mapping (out of band, not in `charts/stalwart`). Then
+   `nc -vz 192.168.7.105 25` from the UDM side, and `nc -vz 10.0.1.5 25` on
+   the server, should both succeed.
+
+   Point MX/A at the **public WAN IP** (Cloudflare grey cloud). Do not use
+   ClusterIP `10.152.183.128`. Add domains in `/admin`.
 
 `config.json` only names the RocksDB DataStore. Everything else lives in the
 database after bootstrap — ArgoCD is not meant to reconcile it.

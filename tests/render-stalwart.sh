@@ -124,15 +124,14 @@ assert_contains "$rendered" "kind: PeerAuthentication"
 assert_contains "$rendered" "mode: DISABLE"
 assert_contains "$rendered" "name: stalwart-mail"
 assert_contains "$rendered" "type: LoadBalancer"
-# Reported: live spec.externalIPs is empty, ArgoCD on latest commit has no
-# diff, and `nc 192.168.7.105 25` is connection refused. Do not use
-# Service.externalIPs as the LAN path.
+# Reported: live spec.externalIPs is empty and hostPort never bound LAN :25.
+# Mail exposure is MetalLB 10.0.1.5; copy the Istio LAN hop outside this chart.
 assert_not_contains "$rendered" "externalIPs:"
-assert_contains "$rendered" "hostPort: 25"
-assert_contains "$rendered" "hostPort: 465"
-assert_contains "$rendered" "hostPort: 587"
-assert_contains "$rendered" "hostPort: 993"
-assert_contains "$rendered" "kubernetes.io/hostname: serv1-kube"
+assert_not_contains "$rendered" "hostPort:"
+assert_not_contains "$rendered" "kubernetes.io/hostname: serv1-kube"
+if grep -E '^[[:space:]]+(values:|parameters:|valuesObject:)' "$APP_FILE"; then
+  fail "applications/stalwart.yaml must not set helm values/parameters overlays (they hide git chart diffs)"
+fi
 assert_contains "$rendered" "name: tcp-smtp"
 assert_contains "$rendered" "targetPort: smtp"
 assert_contains "$rendered" "name: tcp-imaps"
@@ -168,10 +167,6 @@ assert_contains "$with_apply" "STALWART_URL"
 assert_contains "$with_apply" "http://stalwart.mail.svc.cluster.local:8080"
 
 # Mail LB and Istio VS can be disabled independently.
-no_hostports="$(helm template stalwart "$CHART" --namespace mail --set hostPorts.enabled=false)"
-assert_contains "$no_hostports" "name: stalwart-mail"
-assert_not_contains "$no_hostports" "hostPort: 25"
-
 minimal="$(helm template stalwart "$CHART" --namespace mail \
   --set mailLoadBalancer.enabled=false \
   --set virtualService.enabled=false)"

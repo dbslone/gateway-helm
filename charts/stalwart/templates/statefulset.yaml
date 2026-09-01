@@ -65,26 +65,14 @@ spec:
           ports:
             - name: smtp
               containerPort: 25
-              {{- if .Values.hostPorts.enabled }}
-              hostPort: {{ .Values.hostPorts.smtp }}
-              {{- end }}
             - name: smtps
               containerPort: 465
-              {{- if .Values.hostPorts.enabled }}
-              hostPort: {{ .Values.hostPorts.smtps }}
-              {{- end }}
             - name: submission
               containerPort: 587
-              {{- if .Values.hostPorts.enabled }}
-              hostPort: {{ .Values.hostPorts.submission }}
-              {{- end }}
             - name: imap
               containerPort: 143
             - name: imaps
               containerPort: 993
-              {{- if .Values.hostPorts.enabled }}
-              hostPort: {{ .Values.hostPorts.imaps }}
-              {{- end }}
             - name: pop3
               containerPort: 110
             - name: pop3s
