@@ -6,6 +6,14 @@ on:
     branches: [main, master]
 
 jobs:
+  render-gateway:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: azure/setup-helm@v4
+      - name: Gateway chart resources must carry helm.sh/chart
+        run: tests/render-gateway.sh
+
   render-stalwart:
     runs-on: ubuntu-latest
     steps:

@@ -8,6 +8,8 @@ kind: EnvoyFilter
 metadata:
   name: https-on-80
   namespace: istio-ingress
+  labels:
+    {{- include "gateway-helm.labels" . | nindent 4 }}
 spec:
   workloadSelector:
     labels:

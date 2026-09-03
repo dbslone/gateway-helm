@@ -3,6 +3,8 @@ kind: VirtualService
 metadata:
   name: api-gateway-vs
   namespace: simplefbo
+  labels:
+    {{- include "gateway-helm.labels" . | nindent 4 }}
 spec:
   hosts:
     - "api.simplefbo.com"

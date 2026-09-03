@@ -10,6 +10,8 @@ kind: VirtualService
 metadata:
   name: telemetry-ingest-vs
   namespace: simplefbo
+  labels:
+    {{- include "gateway-helm.labels" . | nindent 4 }}
 spec:
   hosts:
     - {{ .Values.telemetryIngest.host | quote }}
