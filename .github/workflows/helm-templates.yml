@@ -31,3 +31,11 @@ jobs:
         env:
           SKIP_WEBMAIL_LIVE: "1"
         run: tests/webmail-origin.sh
+
+  helm-release-index:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: azure/setup-helm@v4
+      - name: Helm repo index must not fail without temp/
+        run: tests/helm-release-index.sh

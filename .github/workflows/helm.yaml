@@ -9,7 +9,6 @@ on:
       - main
     paths:
       - 'temp/**'
-      - 'charts/simplefbo-api-gateway/Chart.yaml'
 
 jobs:
   release:
@@ -30,35 +29,49 @@ jobs:
           fetch-depth: 0
 
       - name: Install Helm
-        uses: azure/setup-helm@v1
+        uses: azure/setup-helm@v4
 
-      - name: Update New Files and push to master branch
+      - name: Update helm repo index
+        id: index
+        shell: bash
+        working-directory: src
+        env:
+          HELM_REPO_URL: https://raw.githubusercontent.com/${{ github.repository }}/gh-pages/helm/
+        run: |
+          chmod +x scripts/release-helm-index.sh
+          scripts/release-helm-index.sh
+          if [[ -f ./temp/index.yaml ]]; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit packaged charts on main
+        if: steps.index.outputs.published == 'true'
         shell: bash
         working-directory: src
         run: |
-          helm repo index ./temp --merge ../dest/index.yaml --url https://raw.githubusercontent.com/eduardo854/helm-repository/gh-pages/helm/
-          mkdir -p ../dest/helm
-          echo "Copying files..."
-          shopt -s extglob
-          mkdir -p ./helm/
-          echo "n" | cp -pr ./temp/!(index.yaml) ../dest/helm/
-          echo "n" | cp -pr ./temp/!(index.yaml) ./helm/
-          echo "n" | cp -pr ./temp/index.yaml ../dest/
-          echo "y" | rm -rf ./temp/*
-          git config user.name "helm"
-          git config user.email "dbslone@gmail.com"
-          git add .
-          git commit -m "Updated from ref: $GITHUB_SHA"
-          git push
-          
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add helm/ || true
+          if git diff --staged --quiet; then
+            echo "No chart copies to commit"
+          else
+            git commit -m "Updated from ref: $GITHUB_SHA"
+            git push
+          fi
 
-      - name: Push New Files
+      - name: Push index to gh-pages
+        if: steps.index.outputs.published == 'true'
         shell: bash
         working-directory: dest
         run: |
-          git config user.name "helm"
-          git config user.email "dbslone@gmail.com"
-          git add $(git ls-files -o --exclude-standard)
-          git add index.yaml
-          git commit -m "Updated from ref: $GITHUB_SHA"
-          git push
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add helm/ index.yaml || true
+          if git diff --staged --quiet; then
+            echo "No index changes to commit"
+          else
+            git commit -m "Updated from ref: $GITHUB_SHA"
+            git push
+          fi
