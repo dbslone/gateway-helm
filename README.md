@@ -105,6 +105,12 @@ namespace `mail`. The browser loads the UI at `webmail.dbslone.com` /
    they are not already covered. Stalwart’s VirtualService already allows
    credentialed CORS from those origins so the browser can call JMAP.
 
+   If Cloudflare returns **520**, Kemp is forwarding HTTPS to Istio **:80**.
+   Istio cannot mix HTTP and HTTPS on Gateway port 80, so chart
+   `simplefbo-api-gateway` installs EnvoyFilter `https-on-80` to terminate
+   TLS on that port (`httpsOnHttpPort` in values.yaml). Also add the hostname
+   to the same Kemp SSL vhost as `mail.dbslone.com` (forward to :443).
+
 ## IMPORTANT
 
 ### Backend Clerk env

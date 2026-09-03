@@ -21,3 +21,13 @@ jobs:
       - uses: azure/setup-helm@v4
       - name: Render Bulwark chart
         run: tests/render-bulwark.sh
+
+  webmail-origin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: azure/setup-helm@v4
+      - name: Webmail TLS-on-:80 helm assertions
+        env:
+          SKIP_WEBMAIL_LIVE: "1"
+        run: tests/webmail-origin.sh

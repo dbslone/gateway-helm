@@ -9,6 +9,17 @@
 # Current environment
 env: production
 
+# Kemp forwards Cloudflare Full SSL for some hostnames to origin :80 without
+# terminating TLS. Envoy then treats the ClientHello as HTTP/1.1
+# (NO_REQUEST_LINE_IN_REQUEST) and Cloudflare shows error 520.
+# Terminate TLS on :80 for those hosts; plaintext HTTP still uses hosts "*".
+httpsOnHttpPort:
+  enabled: true
+  credentialName: simplefbo-cf-tls
+  hosts:
+    - webmail.dbslone.com
+    - webmail.simplefbo.com
+
 # Clerk / backend auth env (required by simplefbo-backend after gateway cutover).
 # These keys must exist on the secret referenced below (same keys used historically
 # by api-gateway). Copy the env block from templates/backend-clerk-env.yaml into
