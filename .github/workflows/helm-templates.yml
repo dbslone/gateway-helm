@@ -9,7 +9,7 @@ jobs:
   render-stalwart:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: azure/setup-helm@v4
       - name: Render Stalwart chart
         run: tests/render-stalwart.sh
@@ -17,7 +17,7 @@ jobs:
   render-bulwark:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: azure/setup-helm@v4
       - name: Render Bulwark chart
         run: tests/render-bulwark.sh

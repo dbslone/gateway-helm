@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Git Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v7
       - name: Helm Installation
         uses: azure/setup-helm@v1.1
         with:
