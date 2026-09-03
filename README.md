@@ -73,6 +73,38 @@ This chart now only manages:
 `config.json` only names the RocksDB DataStore. Everything else lives in the
 database after bootstrap — ArgoCD is not meant to reconcile it.
 
+## Bulwark (webmail)
+
+`charts/bulwark` deploys [Bulwark](https://github.com/bulwarkmail/webmail) in
+namespace `mail`. The browser loads the UI at `webmail.dbslone.com` /
+`webmail.simplefbo.com`, then calls JMAP on `mail.dbslone.com` /
+`mail.simplefbo.com` (the Stalwart VirtualService). Do not point
+`JMAP_SERVERS` at a cluster Service name.
+
+1. Create the session Secret (once, not in git):
+
+   ```bash
+   kubectl -n mail create secret generic bulwark-session \
+     --from-literal=SESSION_SECRET="$(openssl rand -base64 32)"
+   ```
+
+2. Register the app with ArgoCD (once). Same repository URL as Stalwart
+   (`https://github.com/dbslone/gateway-helm.git`). Application name **and**
+   Helm release name must be lowercase `bulwark`. Namespace `mail`. Keep Helm
+   Values/Parameters empty. Auto-sync is off.
+
+   Or apply:
+
+   ```bash
+   kubectl apply -f applications/bulwark.yaml
+   ```
+
+3. Webmail is `https://webmail.dbslone.com` and `https://webmail.simplefbo.com`
+   through the existing Istio Gateway (`istio-ingress/api-gateway`, TLS secret
+   `simplefbo-cf-tls`). Add those hostnames to the Cloudflare origin cert if
+   they are not already covered. Stalwart’s VirtualService already allows
+   credentialed CORS from those origins so the browser can call JMAP.
+
 ## IMPORTANT
 
 ### Backend Clerk env

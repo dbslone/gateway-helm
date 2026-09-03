@@ -1,0 +1,40 @@
+# Application Name and Helm Release Name must both be lowercase `bulwark`.
+# Helm rejects names like "Bulwark" (`--name-template Bulwark`) with:
+#   invalid release name, must match regex ^[a-z0-9]([-a-z0-9]*[a-z0-9])?...
+# Creating the app in the ArgoCD UI as "Bulwark" hits that error because
+# ArgoCD uses the Application name as the Helm release name unless
+# spec.source.helm.releaseName is set.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: bulwark
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  # Matches the existing simplefbo-api-gateway Application. Project simplefbo
+  # does not allow cluster-scoped resources (Namespace, ClusterRole, …).
+  project: simplefbo
+  source:
+    # Must match the URL already connected in ArgoCD for simplefbo-api-gateway.
+    repoURL: "https://github.com/dbslone/gateway-helm.git"
+    targetRevision: HEAD
+    path: charts/bulwark
+    helm:
+      # Live UI app is not this file. Keep Helm Values/Parameters empty so git
+      # chart values render.
+      releaseName: bulwark
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mail
+  syncPolicy:
+    # Live UI app has auto-sync off. Sync only when you intend to apply git.
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+  ignoreDifferences:
+    - group: ""
+      kind: PersistentVolumeClaim
+      jsonPointers:
+        - /spec/resources/requests/storage

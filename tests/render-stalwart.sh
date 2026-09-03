@@ -222,6 +222,22 @@ assert_not_contains "$minimal" "kind: DestinationRule"
 assert_not_contains "$minimal" "kind: PeerAuthentication"
 assert_contains "$minimal" "kind: StatefulSet"
 
+# Default render includes credentialed CORS for Bulwark on webmail.*.
+assert_contains "$rendered" "corsPolicy:"
+assert_contains "$rendered" "allowCredentials: true"
+assert_contains "$rendered" "https://webmail.dbslone.com"
+assert_contains "$rendered" "https://webmail.simplefbo.com"
+assert_contains "$rendered" "Access-Control-Allow-Origin"
+assert_contains "$rendered" "if-match"
+
+# CORS can be disabled without dropping the VirtualService.
+no_cors="$(helm template stalwart "$CHART" --namespace mail --set virtualService.cors.enabled=false)"
+assert_contains "$no_cors" "kind: VirtualService"
+assert_contains "$no_cors" "mail.dbslone.com"
+assert_not_contains "$no_cors" "corsPolicy:"
+assert_not_contains "$no_cors" "webmail.dbslone.com"
+assert_not_contains "$no_cors" "allowCredentials: true"
+
 # helm lint (warning-only notes are ok; fail on errors)
 if ! helm lint "$CHART" >/tmp/stalwart-helm-lint.txt 2>&1; then
   cat /tmp/stalwart-helm-lint.txt >&2

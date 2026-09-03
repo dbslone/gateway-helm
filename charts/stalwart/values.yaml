@@ -98,12 +98,19 @@ mailLoadBalancer:
       targetPort: imaps
 
 # Admin UI / JMAP through the existing Istio Gateway (HTTPS 443).
+# corsPolicy is for Bulwark on webmail.* — the browser calls JMAP on mail.*
+# with credentials. Cluster-internal URLs will not work for that client.
 virtualService:
   enabled: true
   gateway: istio-ingress/api-gateway
   hosts:
     - mail.dbslone.com
     - mail.simplefbo.com
+  cors:
+    enabled: true
+    allowOrigins:
+      - https://webmail.dbslone.com
+      - https://webmail.simplefbo.com
 
 persistence:
   enabled: true

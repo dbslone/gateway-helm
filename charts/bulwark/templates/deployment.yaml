@@ -1,0 +1,120 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "bulwark.fullname" . }}
+  labels:
+    {{- include "bulwark.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "bulwark.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "bulwark.selectorLabels" . | nindent 8 }}
+      annotations:
+        sidecar.istio.io/inject: "false"
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      automountServiceAccountToken: false
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: bulwark
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- with .Values.containerSecurityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          env:
+            - name: HOSTNAME
+              value: {{ .Values.config.hostname | quote }}
+            - name: PORT
+              value: {{ .Values.config.port | quote }}
+            - name: SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "bulwark.sessionSecretName" . }}
+                  key: SESSION_SECRET
+            {{- if .Values.config.jmapServerUrl }}
+            - name: JMAP_SERVER_URL
+              value: {{ .Values.config.jmapServerUrl | quote }}
+            {{- end }}
+            {{- if .Values.config.jmapServers }}
+            - name: JMAP_SERVERS
+              value: {{ .Values.config.jmapServers | toJson | quote }}
+            {{- end }}
+            {{- if .Values.config.jmapServerAutoPickByDomain }}
+            - name: JMAP_SERVER_AUTO_PICK_BY_DOMAIN
+              value: "true"
+            {{- end }}
+            {{- if .Values.config.stalwartFeatures }}
+            - name: STALWART_FEATURES
+              value: "true"
+            {{- end }}
+            {{- if .Values.config.settingsSync }}
+            - name: SETTINGS_SYNC_ENABLED
+              value: "true"
+            {{- end }}
+            {{- if .Values.config.adminConfigDir }}
+            - name: ADMIN_CONFIG_DIR
+              value: {{ .Values.config.adminConfigDir | quote }}
+            {{- end }}
+            {{- if .Values.config.adminStateDir }}
+            - name: ADMIN_STATE_DIR
+              value: {{ .Values.config.adminStateDir | quote }}
+            {{- end }}
+            {{- if .Values.config.settingsDataDir }}
+            - name: SETTINGS_DATA_DIR
+              value: {{ .Values.config.settingsDataDir | quote }}
+            {{- end }}
+            {{- range $key, $value := .Values.extraEnv }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.config.port }}
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          {{- if .Values.persistence.enabled }}
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- if .Values.persistence.enabled }}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "bulwark.fullname" . }}-data
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

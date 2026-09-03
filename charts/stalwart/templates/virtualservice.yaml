@@ -18,6 +18,38 @@ spec:
             host: {{ include "stalwart.mgmtHost" . }}
             port:
               number: {{ .Values.service.ports.mgmt }}
+      {{- if and .Values.virtualService.cors .Values.virtualService.cors.enabled }}
+      # Strip Stalwart's own CORS (no Allow-Credentials) so Istio's policy wins.
+      headers:
+        response:
+          remove:
+            - Access-Control-Allow-Origin
+            - Access-Control-Allow-Credentials
+            - Access-Control-Allow-Headers
+            - Access-Control-Allow-Methods
+            - Access-Control-Expose-Headers
+            - Access-Control-Max-Age
+      corsPolicy:
+        allowOrigins:
+          {{- range .Values.virtualService.cors.allowOrigins }}
+          - exact: {{ . | quote }}
+          {{- end }}
+        allowMethods:
+          - GET
+          - POST
+          - PUT
+          - PATCH
+          - DELETE
+          - OPTIONS
+        allowHeaders:
+          - authorization
+          - content-type
+          - accept
+          - if-match
+          - if-none-match
+        allowCredentials: true
+        maxAge: "24h"
+      {{- end }}
 ---
 # Mesh mTLS is disabled for this workload: the pod has no sidecar (SMTP is
 # server-first) and the Istio ingress gateway must speak plaintext HTTP to :8080.

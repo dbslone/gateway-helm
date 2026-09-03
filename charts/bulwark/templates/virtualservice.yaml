@@ -1,0 +1,48 @@
+{{- if .Values.virtualService.enabled }}
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: {{ include "bulwark.fullname" . }}
+  labels:
+    {{- include "bulwark.labels" . | nindent 4 }}
+spec:
+  hosts:
+    {{- range .Values.virtualService.hosts }}
+    - {{ . | quote }}
+    {{- end }}
+  gateways:
+    - {{ .Values.virtualService.gateway }}
+  http:
+    - route:
+        - destination:
+            host: {{ include "bulwark.httpHost" . }}
+            port:
+              number: {{ .Values.service.port }}
+---
+# Mesh mTLS is disabled for this workload: the pod has no sidecar and the
+# Istio ingress gateway must speak plaintext HTTP to the ClusterIP.
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: {{ include "bulwark.fullname" . }}
+  labels:
+    {{- include "bulwark.labels" . | nindent 4 }}
+spec:
+  host: {{ include "bulwark.httpHost" . }}
+  trafficPolicy:
+    tls:
+      mode: DISABLE
+---
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: {{ include "bulwark.fullname" . }}
+  labels:
+    {{- include "bulwark.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "bulwark.selectorLabels" . | nindent 6 }}
+  mtls:
+    mode: DISABLE
+{{- end }}

@@ -1,0 +1,87 @@
+# Bulwark JMAP webmail. The browser loads this UI, then calls JMAP on
+# mail.dbslone.com / mail.simplefbo.com directly (not the cluster Service).
+
+image:
+  repository: ghcr.io/bulwarkmail/webmail
+  tag: "1.9.2"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+nameOverride: ""
+fullnameOverride: ""
+
+# Create this Secret in namespace `mail` before the first ArgoCD sync:
+#
+#   kubectl -n mail create secret generic bulwark-session \
+#     --from-literal=SESSION_SECRET="$(openssl rand -base64 32)"
+session:
+  existingSecret: bulwark-session
+  secret: ""
+
+config:
+  hostname: "0.0.0.0"
+  port: 3000
+  stalwartFeatures: true
+  settingsSync: true
+  # Leave empty so JMAP_SERVERS (not a single URL) drives login.
+  jmapServerUrl: ""
+  jmapServerAutoPickByDomain: true
+  jmapServers:
+    - id: dbslone
+      label: dbslone.com
+      url: https://mail.dbslone.com
+      domains:
+        - dbslone.com
+    - id: simplefbo
+      label: simplefbo.com
+      url: https://mail.simplefbo.com
+      domains:
+        - simplefbo.com
+  adminConfigDir: /app/data/admin
+  adminStateDir: /app/data/admin-state
+  settingsDataDir: /app/data/settings
+
+extraEnv: {}
+
+service:
+  type: ClusterIP
+  port: 3000
+
+virtualService:
+  enabled: true
+  gateway: istio-ingress/api-gateway
+  hosts:
+    - webmail.dbslone.com
+    - webmail.simplefbo.com
+
+persistence:
+  enabled: true
+  accessMode: ReadWriteOnce
+  storageClass: ""
+  size: 1Gi
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 1Gi
+
+podSecurityContext:
+  fsGroup: 1000
+  runAsUser: 1000
+  runAsGroup: 1000
+  runAsNonRoot: true
+
+containerSecurityContext:
+  runAsNonRoot: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: [ALL]
+  seccompProfile:
+    type: RuntimeDefault
+
+podAnnotations: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
