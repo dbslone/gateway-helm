@@ -9,13 +9,6 @@
 # Current environment
 env: production
 
-# Kemp forwards a TLS ClientHello to Istio :80 for webmail (mail is HTTP on
-# the same port). Terminate TLS on :80 and pin plaintext HTTP to raw_buffer
-# so the ClientHello cannot hit the HTTP codec (Cloudflare 520).
-httpsOnHttpPort:
-  enabled: true
-  credentialName: simplefbo-cf-tls
-
 # Clerk / backend auth env (required by simplefbo-backend after gateway cutover).
 # These keys must exist on the secret referenced below (same keys used historically
 # by api-gateway). Copy the env block from templates/backend-clerk-env.yaml into

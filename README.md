@@ -106,10 +106,6 @@ namespace `mail`. The browser loads the UI at `webmail.dbslone.com` /
    they are not already covered. Stalwart’s VirtualService already allows
    credentialed CORS from those origins so the browser can call JMAP.
 
-   Cloudflare **520** on `/setup` is Kemp sending a TLS ClientHello to Istio
-   HTTP :80 (`NO_REQUEST_LINE_IN_REQUEST`). Chart EnvoyFilter `https-on-80`
-   terminates that TLS and keeps mail’s plaintext HTTP on `raw_buffer`.
-
 ## IMPORTANT
 
 ### Backend Clerk env

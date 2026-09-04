@@ -103,12 +103,75 @@ assert_not_contains "$rendered" "kind: Secret"
 assert_contains "$rendered" "kind: VirtualService"
 assert_contains "$rendered" "istio-ingress/api-gateway"
 assert_not_contains "$rendered" "api-gateway-https-on-80"
-assert_contains "$rendered" "namespace: mail"
 assert_contains "$rendered" "webmail.dbslone.com"
 assert_contains "$rendered" "webmail.simplefbo.com"
 assert_contains "$rendered" "kind: DestinationRule"
 assert_contains "$rendered" "kind: PeerAuthentication"
 assert_contains "$rendered" "mode: DISABLE"
+# Same Gateway binding as Stalwart; do not hardcode metadata.namespace (ArgoCD destination mail).
+st_rendered="$(helm template stalwart "$ROOT/charts/stalwart" --namespace mail)"
+export BW_RENDERED="$rendered"
+export ST_RENDERED="$st_rendered"
+python3 <<'PY'
+import os
+import sys
+
+def vs_docs(raw):
+    return [c for c in raw.split("\n---\n") if "kind: VirtualService" in c]
+
+def gateways(vs):
+    lines = vs.splitlines()
+    out = []
+    in_gw = False
+    for ln in lines:
+        s = ln.strip()
+        if s.startswith("gateways:"):
+            in_gw = True
+            continue
+        if in_gw:
+            if s.startswith("- "):
+                out.append(s)
+                continue
+            if s and not s.startswith("#"):
+                break
+    return out
+
+def metadata_has_namespace(vs):
+    in_meta = False
+    for ln in vs.splitlines():
+        if ln.startswith("metadata:"):
+            in_meta = True
+            continue
+        if in_meta:
+            if ln.startswith("spec:") or ln.startswith("data:"):
+                break
+            if ln.strip().startswith("namespace:"):
+                return True
+    return False
+
+bw_vs, st_vs = vs_docs(os.environ["BW_RENDERED"]), vs_docs(os.environ["ST_RENDERED"])
+if len(bw_vs) != 1:
+    sys.stderr.write(f"FAIL: expected exactly 1 Bulwark VirtualService, got {len(bw_vs)}\n")
+    sys.exit(1)
+if not st_vs:
+    sys.stderr.write("FAIL: expected a Stalwart VirtualService to compare gateways\n")
+    sys.exit(1)
+b, s = bw_vs[0], st_vs[0]
+if metadata_has_namespace(b):
+    sys.stderr.write("FAIL: Bulwark VirtualService must not hardcode metadata.namespace (match Stalwart)\n")
+    sys.exit(1)
+bg, sg = gateways(b), gateways(s)
+want = ["- istio-ingress/api-gateway"]
+if bg != want:
+    sys.stderr.write(f"FAIL: Bulwark gateways must be only api-gateway, got {bg}\n")
+    sys.exit(1)
+if sg != want:
+    sys.stderr.write(f"FAIL: Stalwart gateways must be only api-gateway, got {sg}\n")
+    sys.exit(1)
+if "bulwark.mail.svc.cluster.local" not in b:
+    sys.stderr.write("FAIL: destination must be bulwark.mail.svc.cluster.local\n")
+    sys.exit(1)
+PY
 assert_contains "$rendered" "kind: PersistentVolumeClaim"
 assert_contains "$rendered" "storage: \"1Gi\""
 assert_contains "$rendered" "path: /api/health"
