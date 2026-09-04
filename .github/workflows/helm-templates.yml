@@ -35,7 +35,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: azure/setup-helm@v4
-      - name: Webmail VS matches Stalwart gateway binding
+      - name: Webmail TLS-on-:80 raw_buffer helm assertions
         env:
           SKIP_WEBMAIL_LIVE: "1"
         run: tests/webmail-origin.sh

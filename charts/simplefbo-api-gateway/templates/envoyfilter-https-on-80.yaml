@@ -1,0 +1,186 @@
+{{- if .Values.httpsOnHttpPort.enabled }}
+# Kemp SSL-offloads mail to HTTP :80. For webmail it forwards a non-HTTP payload
+# to that port (NO_REQUEST_LINE_IN_REQUEST → Cloudflare 520 on /setup).
+# Istio cannot put HTTP+HTTPS on Gateway port 80. This filter:
+#   1. Optional PROXY, then tls_inspector + http_inspector on :80
+#   2. HTTP chain matches only detected HTTP/1.x (mail)
+#   3. TLS chain + default_filter_chain terminate everything else with the
+#      origin cert (webmail ClientHello that is not classified as TLS)
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: https-on-80
+  namespace: istio-ingress
+  labels:
+    {{- include "gateway-helm.labels" . | nindent 4 }}
+spec:
+  workloadSelector:
+    labels:
+      istio: ingress
+  configPatches:
+  - applyTo: LISTENER_FILTER
+    match:
+      context: GATEWAY
+      listener:
+        portNumber: 80
+    patch:
+      operation: INSERT_FIRST
+      value:
+        name: envoy.filters.listener.http_inspector
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.listener.http_inspector.v3.HttpInspector
+  - applyTo: LISTENER_FILTER
+    match:
+      context: GATEWAY
+      listener:
+        portNumber: 80
+    patch:
+      operation: INSERT_FIRST
+      value:
+        name: envoy.filters.listener.tls_inspector
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.listener.tls_inspector.v3.TlsInspector
+  - applyTo: LISTENER_FILTER
+    match:
+      context: GATEWAY
+      listener:
+        portNumber: 80
+    patch:
+      operation: INSERT_FIRST
+      value:
+        name: envoy.filters.listener.proxy_protocol
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.listener.proxy_protocol.v3.ProxyProtocol
+          allow_requests_without_proxy_protocol: true
+  - applyTo: LISTENER_FILTER
+    match:
+      context: GATEWAY
+      listener:
+        portNumber: 443
+    patch:
+      operation: INSERT_FIRST
+      value:
+        name: envoy.filters.listener.proxy_protocol
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.listener.proxy_protocol.v3.ProxyProtocol
+          allow_requests_without_proxy_protocol: true
+  - applyTo: FILTER_CHAIN
+    match:
+      context: GATEWAY
+      listener:
+        portNumber: 80
+    patch:
+      operation: MERGE
+      value:
+        filter_chain_match:
+          transport_protocol: raw_buffer
+          application_protocols:
+          - http/1.1
+          - http/1.0
+          - http/2
+          - h2c
+  - applyTo: NETWORK_FILTER
+    match:
+      context: GATEWAY
+      listener:
+        portNumber: 80
+        filterChain:
+          transportProtocol: RAW
+    patch:
+      operation: MERGE
+      value:
+        name: envoy.filters.network.http_connection_manager
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          codec_type: AUTO
+          http2_protocol_options: {}
+  - applyTo: FILTER_CHAIN
+    match:
+      context: GATEWAY
+      listener:
+        portNumber: 80
+    patch:
+      operation: INSERT_FIRST
+      value:
+        filter_chain_match:
+          transport_protocol: tls
+        transport_socket:
+          name: envoy.transport_sockets.tls
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
+            common_tls_context:
+              tls_params:
+                tls_minimum_protocol_version: TLSv1_2
+                cipher_suites:
+                - ECDHE-RSA-AES256-GCM-SHA384
+                - ECDHE-RSA-AES128-GCM-SHA256
+              alpn_protocols:
+              - h2
+              - http/1.1
+              tls_certificate_sds_secret_configs:
+              - name: kubernetes://{{ .Values.httpsOnHttpPort.credentialName | default "simplefbo-cf-tls" }}
+                sds_config:
+                  ads: {}
+                  resource_api_version: V3
+            require_client_certificate: false
+        filters:
+        - name: envoy.filters.network.http_connection_manager
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+            stat_prefix: https_on_80
+            codec_type: AUTO
+            http2_protocol_options: {}
+            rds:
+              route_config_name: https.443.https-dbslone.api-gateway.istio-ingress
+              config_source:
+                ads: {}
+                resource_api_version: V3
+            http_filters:
+            - name: envoy.filters.http.router
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+  - applyTo: LISTENER
+    match:
+      context: GATEWAY
+      listener:
+        portNumber: 80
+    patch:
+      operation: MERGE
+      value:
+        default_filter_chain:
+          transport_socket:
+            name: envoy.transport_sockets.tls
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
+              common_tls_context:
+                tls_params:
+                  tls_minimum_protocol_version: TLSv1_2
+                  cipher_suites:
+                  - ECDHE-RSA-AES256-GCM-SHA384
+                  - ECDHE-RSA-AES128-GCM-SHA256
+                alpn_protocols:
+                - h2
+                - http/1.1
+                tls_certificate_sds_secret_configs:
+                - name: kubernetes://{{ .Values.httpsOnHttpPort.credentialName | default "simplefbo-cf-tls" }}
+                  sds_config:
+                    ads: {}
+                    resource_api_version: V3
+              require_client_certificate: false
+          filters:
+          - name: envoy.filters.network.http_connection_manager
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+              stat_prefix: https_on_80_default
+              codec_type: AUTO
+              http2_protocol_options: {}
+              rds:
+                route_config_name: https.443.https-dbslone.api-gateway.istio-ingress
+                config_source:
+                  ads: {}
+                  resource_api_version: V3
+              http_filters:
+              - name: envoy.filters.http.router
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+{{- end }}

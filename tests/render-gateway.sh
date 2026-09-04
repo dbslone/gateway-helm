@@ -25,7 +25,7 @@ ver = sys.argv[1]
 want = f"helm.sh/chart: gateway-{ver}"
 raw = os.environ["RENDERED"]
 docs = [d.strip() for d in raw.split("\n---\n") if d.strip() and "kind:" in d]
-tracked = ("Gateway", "VirtualService", "ConfigMap")
+tracked = ("Gateway", "EnvoyFilter", "VirtualService", "ConfigMap")
 missing = []
 found = {k: 0 for k in tracked}
 for doc in docs:
@@ -52,6 +52,9 @@ for doc in docs:
 if found.get("Gateway", 0) < 1:
     sys.stderr.write("FAIL: expected a Gateway in the render\n")
     sys.exit(1)
+if found.get("EnvoyFilter", 0) < 1:
+    sys.stderr.write("FAIL: expected EnvoyFilter https-on-80 in the render\n")
+    sys.exit(1)
 if missing:
     sys.stderr.write(
         "FAIL: ArgoCD App Diff stays empty for these resources because they "
@@ -59,6 +62,6 @@ if missing:
     )
     sys.exit(1)
 print(
-    f"OK: helm.sh/chart gateway-{ver} on Gateway, VirtualService, ConfigMap"
+    f"OK: helm.sh/chart gateway-{ver} on Gateway, EnvoyFilter, VirtualService, ConfigMap"
 )
 PY

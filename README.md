@@ -106,10 +106,9 @@ namespace `mail`. The browser loads the UI at `webmail.dbslone.com` /
    they are not already covered. Stalwart’s VirtualService already allows
    credentialed CORS from those origins so the browser can call JMAP.
 
-   The Bulwark VirtualService must live in namespace `mail` and bind only to
-   `istio-ingress/api-gateway` (same as Stalwart). A leftover VS in `default`
-   bound to a non-existent `api-gateway-https-on-80` Gateway was not the 520,
-   but it is not how the other services are wired.
+   Cloudflare **520** on `/setup` is Kemp sending a TLS ClientHello to Istio
+   HTTP :80 (`NO_REQUEST_LINE_IN_REQUEST`). Chart EnvoyFilter `https-on-80`
+   terminates that TLS and keeps mail’s plaintext HTTP on `raw_buffer`.
 
 ## IMPORTANT
 
