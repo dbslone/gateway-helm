@@ -119,6 +119,11 @@ assert_contains "$rendered" "kind: VirtualService"
 assert_contains "$rendered" "istio-ingress/api-gateway"
 assert_contains "$rendered" "mail.dbslone.com"
 assert_contains "$rendered" "mail.simplefbo.com"
+# Reported: Bulwark /setup "Couldn't connect to that address" for
+# https://mail.dbslone.com because the JMAP session advertised
+# apiUrl https://stalwart-0/jmap/ (pod hostname) instead of the public URL.
+assert_contains "$rendered" "name: STALWART_PUBLIC_URL"
+assert_contains "$rendered" "value: \"https://mail.dbslone.com\""
 assert_contains "$rendered" "kind: DestinationRule"
 assert_contains "$rendered" "kind: PeerAuthentication"
 assert_contains "$rendered" "mode: DISABLE"

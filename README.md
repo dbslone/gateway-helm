@@ -46,8 +46,10 @@ This chart now only manages:
 
 3. Admin UI is `https://mail.dbslone.com` and `https://mail.simplefbo.com` through
    the existing Istio Gateway (`istio-ingress/api-gateway`, TLS secret
-   `simplefbo-cf-tls`). Add those hostnames to the Cloudflare origin cert if they
-   are not already covered. Keep Helm Values/Parameters empty on the live
+   `simplefbo-cf-tls`). The chart sets `STALWART_PUBLIC_URL=https://mail.dbslone.com`
+   so JMAP session `apiUrl` is that host, not the pod name `stalwart-0` (Bulwark
+   `/setup` otherwise fails with "Couldn't connect to that address"). Add those
+   hostnames to the Cloudflare origin cert if they are not already covered. Keep Helm Values/Parameters empty on the live
    ArgoCD app so git chart values render. That Parameters tab stays empty on
    purpose — CPU and other defaults live in `charts/stalwart/values.yaml` and
    show up on the **StatefulSet App Diff**, not as Helm parameters. Auto-sync

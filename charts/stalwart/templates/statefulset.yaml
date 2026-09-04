@@ -36,8 +36,12 @@ spec:
           args:
             - "--config"
             - "/etc/stalwart/config.json"
-          {{- if or .Values.role .Values.pushShard .Values.recoveryMode.enabled .Values.extraEnv }}
+          {{- if or .Values.publicUrl .Values.role .Values.pushShard .Values.recoveryMode.enabled .Values.extraEnv }}
           env:
+            {{- if .Values.publicUrl }}
+            - name: STALWART_PUBLIC_URL
+              value: {{ .Values.publicUrl | quote }}
+            {{- end }}
             {{- if .Values.role }}
             - name: STALWART_ROLE
               value: {{ .Values.role | quote }}

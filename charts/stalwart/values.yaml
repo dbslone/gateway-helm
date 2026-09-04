@@ -37,6 +37,11 @@ recoveryMode:
 extraEnv: {}
 extraSecretEnv: {}
 
+# JMAP/OIDC discovery base URL (absolute URLs in /.well-known/jmap).
+# Unset, Stalwart publishes https://<pod>/jmap/ (here: stalwart-0) and Bulwark
+# setup fails with "Couldn't connect to that address" for https://mail.dbslone.com.
+publicUrl: https://mail.dbslone.com
+
 # config.json — DataStore only. Do not put domains here.
 config:
   "@type": RocksDb
