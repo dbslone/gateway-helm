@@ -101,15 +101,15 @@ namespace `mail`. The browser loads the UI at `webmail.dbslone.com` /
 
 3. Webmail is `https://webmail.dbslone.com` and `https://webmail.simplefbo.com`
    through the existing Istio Gateway (`istio-ingress/api-gateway`, TLS secret
-   `simplefbo-cf-tls`). Add those hostnames to the Cloudflare origin cert if
+   `simplefbo-cf-tls`) — the same Gateway as `mail.dbslone.com` /
+   `vault.dbslone.com`. Add those hostnames to the Cloudflare origin cert if
    they are not already covered. Stalwart’s VirtualService already allows
    credentialed CORS from those origins so the browser can call JMAP.
 
-   If Cloudflare returns **520**, Kemp is forwarding HTTPS to Istio **:80**.
-   Istio cannot mix HTTP and HTTPS on Gateway port 80, so chart
-   `simplefbo-api-gateway` installs EnvoyFilter `https-on-80` to terminate
-   TLS on that port (`httpsOnHttpPort` in values.yaml). Also add the hostname
-   to the same Kemp SSL vhost as `mail.dbslone.com` (forward to :443).
+   The Bulwark VirtualService must live in namespace `mail` and bind only to
+   `istio-ingress/api-gateway` (same as Stalwart). A leftover VS in `default`
+   bound to a non-existent `api-gateway-https-on-80` Gateway was not the 520,
+   but it is not how the other services are wired.
 
 ## IMPORTANT
 

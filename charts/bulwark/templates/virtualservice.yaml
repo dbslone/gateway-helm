@@ -3,6 +3,7 @@ apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
   name: {{ include "bulwark.fullname" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "bulwark.labels" . | nindent 4 }}
 spec:
@@ -25,6 +26,7 @@ apiVersion: networking.istio.io/v1beta1
 kind: DestinationRule
 metadata:
   name: {{ include "bulwark.fullname" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "bulwark.labels" . | nindent 4 }}
 spec:
@@ -37,6 +39,7 @@ apiVersion: security.istio.io/v1
 kind: PeerAuthentication
 metadata:
   name: {{ include "bulwark.fullname" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "bulwark.labels" . | nindent 4 }}
 spec:

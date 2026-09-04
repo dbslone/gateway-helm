@@ -2,7 +2,7 @@ apiVersion: v2
 name: bulwark
 description: Bulwark JMAP webmail for Stalwart (dbslone.com and simplefbo.com)
 type: application
-version: 0.1.0
+version: 0.1.1
 appVersion: "1.9.2"
 home: https://github.com/bulwarkmail/webmail
 sources:
