@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
-# Reported issue: https://webmail.dbslone.com returns Cloudflare error 520
-# (origin closed the connection without a valid HTTP response).
+# Reported issue: https://webmail.dbslone.com/setup returns Cloudflare error 520
+# after the Bulwark chart (0.1.1) and gateway cleanup were applied on the cluster.
 #
-# Cloudflare Full SSL sends a TLS ClientHello. Kemp forwards that (often with a
-# PROXY header) to Istio :80 and/or :443 for hostnames without an SSL vhost.
-# :80 HTTP codec → NO_REQUEST_LINE_IN_REQUEST; :443 + PROXY → TLS alert
-# protocol_version. Cloudflare surfaces either as 520.
+# Cluster path is healthy: LAN Istio serves /setup as 200 and / as 307. Cloudflare
+# still 520s because Kemp (192.168.7.184) delivers a non-HTTP payload
+# (NO_REQUEST_LINE_IN_REQUEST). Mail from the same Kemp IP arrives as HTTP GET
+# with Host: mail.dbslone.com.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-CHART="$ROOT/charts/simplefbo-api-gateway"
-URL="${WEBMAIL_URL:-https://webmail.dbslone.com/}"
+GW_CHART="$ROOT/charts/simplefbo-api-gateway"
+BW_CHART="$ROOT/charts/bulwark"
+ST_CHART="$ROOT/charts/stalwart"
+URL="${WEBMAIL_URL:-https://webmail.dbslone.com/setup}"
 
 fail() {
   echo "FAIL: $*" >&2
@@ -22,42 +24,83 @@ if ! command -v helm >/dev/null 2>&1; then
   exit 1
 fi
 
-rendered="$(helm template gateway "$CHART" --namespace istio-ingress)"
-
-# Istio refuses HTTP+HTTPS on Gateway port 80, so TLS-on-:80 is an EnvoyFilter
-# that terminates a ClientHello instead of parsing it as HTTP/1.1 (the 520).
-echo "$rendered" | grep -q 'kind: EnvoyFilter' || fail "expected EnvoyFilter for TLS-on-:80"
-echo "$rendered" | grep -q 'name: https-on-80' || fail "expected EnvoyFilter metadata.name https-on-80"
-echo "$rendered" | grep -q 'transport_protocol: tls' || fail "expected TLS filter chain match on :80"
-echo "$rendered" | grep -q 'envoy.filters.listener.tls_inspector' || fail "expected tls_inspector on :80 so HTTP and TLS can share the port"
-echo "$rendered" | grep -q 'envoy.filters.listener.proxy_protocol' || fail "expected optional PROXY protocol (Kemp prepends it; without it TLS-on-:80/:443 still 520s)"
-echo "$rendered" | grep -q 'allow_requests_without_proxy_protocol: true' || fail "PROXY protocol must be optional so LAN/non-Kemp HTTP still works"
-echo "$rendered" | grep -q 'kubernetes://simplefbo-cf-tls' || fail "expected origin cert SDS kubernetes://simplefbo-cf-tls on the :80 TLS chain"
-# Kemp catch-all sends PROXY+TLS to :443 (LAN :443 without PROXY returns 307 for
-# webmail; PROXY+TLS on :443 used to TLS-alert → Cloudflare 520).
-python3 -c '
-import sys
-text = sys.stdin.read()
-if "portNumber: 443" not in text:
-    sys.stderr.write("FAIL: EnvoyFilter must match listener port 443 so PROXY+TLS from Kemp does not 520\n")
-    sys.exit(1)
-# The 443 patch must be proxy_protocol, not only the :80 TLS chain.
-idx = text.find("portNumber: 443")
-window = text[max(0, idx-400): idx+400]
-if "envoy.filters.listener.proxy_protocol" not in window and "ProxyProtocol" not in window:
-    sys.stderr.write("FAIL: port 443 EnvoyFilter patch must insert optional PROXY protocol\n")
-    sys.exit(1)
-' <<<"$rendered" || fail "expected optional PROXY protocol on :443 (PROXY+TLS there TLS-alerts and Cloudflare 520s)"
-if ! grep -q 'webmail.dbslone.com' "$CHART/values.yaml"; then
-  fail "httpsOnHttpPort must list webmail.dbslone.com (the host that returned Cloudflare 520)"
+# Gateway chart must not install a webmail-only EnvoyFilter; mail/vault do not
+# have one, and TLS-on-:80 did not stop Cloudflare 520.
+gw_rendered="$(helm template gateway "$GW_CHART" --namespace istio-ingress)"
+if grep -q 'kind: EnvoyFilter' <<<"$gw_rendered"; then
+  fail "simplefbo-api-gateway must not render an EnvoyFilter (mail/vault use the Gateway as-is; https-on-80 did not clear the 520)"
 fi
+if grep -q 'httpsOnHttpPort' "$GW_CHART/values.yaml"; then
+  fail "httpsOnHttpPort must not remain in gateway values (it was webmail-only and did not match other services)"
+fi
+
+bw="$(helm template bulwark "$BW_CHART" --namespace mail)"
+st="$(helm template stalwart "$ST_CHART" --namespace mail)"
+
+export BW_RENDERED="$bw"
+export ST_RENDERED="$st"
+python3 <<'PY'
+import os
+import sys
+
+bw, st = os.environ["BW_RENDERED"], os.environ["ST_RENDERED"]
+
+def vs_docs(raw):
+    docs = []
+    for chunk in raw.split("\n---\n"):
+        if "kind: VirtualService" not in chunk:
+            continue
+        docs.append(chunk)
+    return docs
+
+bw_vs = vs_docs(bw)
+st_vs = vs_docs(st)
+if len(bw_vs) != 1:
+    sys.stderr.write(f"FAIL: expected exactly 1 Bulwark VirtualService, got {len(bw_vs)}\n")
+    sys.exit(1)
+if len(st_vs) < 1:
+    sys.stderr.write("FAIL: expected Stalwart VirtualService to compare gateway binding\n")
+    sys.exit(1)
+
+b, s = bw_vs[0], st_vs[0]
+if "namespace: mail" not in b:
+    sys.stderr.write(
+        "FAIL: Bulwark VirtualService must set metadata.namespace: mail so "
+        "helm template | kubectl apply cannot land in default (that leftover "
+        "VS bound webmail to api-gateway-https-on-80)\n"
+    )
+    sys.exit(1)
+if "istio-ingress/api-gateway" not in b:
+    sys.stderr.write("FAIL: Bulwark VirtualService must bind istio-ingress/api-gateway like mail/vault\n")
+    sys.exit(1)
+if "api-gateway-https-on-80" in b:
+    sys.stderr.write(
+        "FAIL: Bulwark VirtualService must not bind api-gateway-https-on-80 "
+        "(that Gateway does not exist; mail/vault do not use it)\n"
+    )
+    sys.exit(1)
+if "bulwark.mail.svc.cluster.local" not in b:
+    sys.stderr.write("FAIL: Bulwark VirtualService destination must be bulwark.mail.svc.cluster.local\n")
+    sys.exit(1)
+if "webmail.dbslone.com" not in b:
+    sys.stderr.write("FAIL: Bulwark VirtualService must list webmail.dbslone.com (the host that 520s)\n")
+    sys.exit(1)
+# Same gateway as Stalwart — not a second listener or extra Gateway.
+if "istio-ingress/api-gateway" not in s:
+    sys.stderr.write("FAIL: Stalwart comparison VirtualService missing istio-ingress/api-gateway\n")
+    sys.exit(1)
+gateways = [ln.strip() for ln in b.splitlines() if ln.strip().startswith("- istio-ingress/")]
+if gateways != ["- istio-ingress/api-gateway"]:
+    sys.stderr.write(f"FAIL: Bulwark gateways must be only api-gateway like Stalwart, got {gateways}\n")
+    sys.exit(1)
+PY
 
 if ! command -v curl >/dev/null 2>&1; then
   fail "curl is required to probe $URL"
 fi
 
 if [[ "${SKIP_WEBMAIL_LIVE:-}" == "1" ]]; then
-  echo "OK: helm assertions for TLS-on-:80 and PROXY on :443 (live $URL probe skipped)"
+  echo "OK: Bulwark VS matches Stalwart gateway binding (live $URL probe skipped)"
   exit 0
 fi
 
@@ -67,11 +110,11 @@ body="$(head -c 200 "$tmp" | tr '\n' ' ')"
 rm -f "$tmp"
 
 if [[ "$status" == "520" ]] || grep -qi 'error code: 520' <<<"$body"; then
-  fail "$URL returned Cloudflare 520 (Kemp sent a non-HTTP payload to Istio :80, or PROXY+TLS to :443 without the proxy_protocol filter). Got status=$status body=$body"
+  fail "$URL returned Cloudflare 520. After chart sync, Istio still never sees HTTP Host webmail.dbslone.com or path /setup (NO_REQUEST_LINE_IN_REQUEST from Kemp 192.168.7.184). LAN https://webmail.dbslone.com/setup is 200. Got status=$status body=$body"
 fi
 
 if [[ ! "$status" =~ ^(200|301|302|303|307|308)$ ]]; then
-  fail "$URL expected a browser-loadable 2xx/3xx from Bulwark, got HTTP $status body=$body"
+  fail "$URL expected Bulwark setup (2xx/3xx), got HTTP $status body=$body"
 fi
 
 echo "OK: webmail origin $URL -> HTTP $status"
