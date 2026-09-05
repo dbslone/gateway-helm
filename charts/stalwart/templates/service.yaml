@@ -73,6 +73,10 @@ spec:
   type: {{ .Values.mailLoadBalancer.type }}
   selector:
     {{- include "stalwart.selectorLabels" . | nindent 4 }}
+  {{- with .Values.mailLoadBalancer.externalIPs }}
+  externalIPs:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   ports:
     {{- range .Values.mailLoadBalancer.ports }}
     - name: {{ .name }}

@@ -129,9 +129,24 @@ assert_contains "$rendered" "kind: PeerAuthentication"
 assert_contains "$rendered" "mode: DISABLE"
 assert_contains "$rendered" "name: stalwart-mail"
 assert_contains "$rendered" "type: LoadBalancer"
-# Reported: live spec.externalIPs is empty and hostPort never bound LAN :25.
-# Mail exposure is MetalLB 10.0.1.5; copy the Istio LAN hop outside this chart.
-assert_not_contains "$rendered" "externalIPs:"
+# Reported: Gmail to dbslone@dbslone.com never arrived. UDM forwards 25/465/587/993
+# to node LAN 192.168.7.105 (10.x is not UDM-routable). Without externalIPs on
+# stalwart-mail, nothing listens on that IP:25 and WAN SMTP is connection-refused.
+mail_lb="$(awk '
+  $1=="kind:" && $2=="Service" {svc=1; block=""}
+  svc {block=block $0 "\n"}
+  svc && $1=="name:" && $2=="stalwart-mail" {keep=1}
+  svc && /^---$/ {
+    if (keep) {printf "%s", block; exit}
+    svc=0; keep=0; block=""
+  }
+  END {if (keep) printf "%s", block}
+' <<<"$rendered")"
+if [[ -z "$mail_lb" ]]; then
+  fail "expected Service/stalwart-mail in the render"
+fi
+assert_contains "$mail_lb" "externalIPs:"
+assert_contains "$mail_lb" "- 192.168.7.105"
 assert_not_contains "$rendered" "hostPort:"
 assert_not_contains "$rendered" "kubernetes.io/hostname: serv1-kube"
 if grep -E '^[[:space:]]+(values:|parameters:|valuesObject:)' "$APP_FILE"; then

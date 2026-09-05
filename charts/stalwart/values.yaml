@@ -81,13 +81,16 @@ service:
 # Public L4 exposure for SMTP/IMAP. Do not put these through Istio or
 # Cloudflare proxy — MX hostnames must be DNS-only (grey cloud).
 #
-# Chart job is MetalLB VIP 10.0.1.5. Do not add hostPort, nodeSelector, or
-# Service.externalIPs here: the UDM hop to that VIP is the same pattern as
-# istio-ingress (10.0.1.4 + LAN 192.168.7.105) and lives outside this chart.
+# MetalLB VIP 10.0.1.5 stays on the Service for in-server traffic. The UDM
+# DNAT target is the node LAN IP (same as istio-ingress 80/443), because
+# 10.x is not routable from the UDM. Without externalIPs, WAN :25 is refused
+# and Gmail never reaches Stalwart.
 mailLoadBalancer:
   enabled: true
   type: LoadBalancer
   annotations: {}
+  externalIPs:
+    - 192.168.7.105
   ports:
     - name: tcp-smtp
       port: 25

@@ -57,20 +57,17 @@ This chart now only manages:
    `applications/stalwart.yaml` is a template; the live app was created in the UI.
 
 4. SMTP/IMAP stay off Istio. The chart's job is LoadBalancer `stalwart-mail` at
-   **`10.0.1.5`** (MetalLB). That is the mail equivalent of Istio's MetalLB IP
-   (`istio-ingress` → `10.0.1.4`). Do not add `hostPort`, `nodeSelector`, or
-   `externalIPs` to this chart.
+   **`10.0.1.5`** (MetalLB, in-server) **and** `spec.externalIPs: ["192.168.7.105"]`
+   so kube-proxy listens on the node LAN IP. The UDM DNAT target is
+   **`192.168.7.105`** (same as Istio 80/443). `10.x` is not reachable from the UDM.
+   Do not add `hostPort` or `nodeSelector` to this chart.
 
-   The UDM only talks to node LAN **`192.168.7.105`**. HTTPS already works
-   because `istio-ingress` is a LoadBalancer **plus** `spec.externalIPs:
-   ["192.168.7.105"]` for 80/443 — the node does not listen on 443. Copy that
-   hop for **25/465/587/993 → `10.0.1.5`** on the UDM and/or the same
-   node-LAN Service mapping (out of band, not in `charts/stalwart`). Then
-   `nc -vz 192.168.7.105 25` from the UDM side, and `nc -vz 10.0.1.5 25` on
-   the server, should both succeed.
+   After sync, `nc -vz 192.168.7.105 25` from the LAN should get a Stalwart
+   banner. Then `nc -vz 76.95.114.68 25` from off-LAN should too. If WAN :25
+   stays refused with LAN :25 open, the ISP is blocking inbound SMTP.
 
    Point MX/A at the **public WAN IP** (Cloudflare grey cloud). Do not use
-   ClusterIP `10.152.183.128`. Add domains in `/admin`.
+   ClusterIP `10.152.183.128` or proxied `mail.dbslone.com`. Add domains in `/admin`.
 
 `config.json` only names the RocksDB DataStore. Everything else lives in the
 database after bootstrap — ArgoCD is not meant to reconcile it.
