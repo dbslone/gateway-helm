@@ -18,7 +18,7 @@ jobs:
           node-version: "24"
       - uses: azure/setup-helm@v4
       - name: Gateway chart resources must carry helm.sh/chart
-        run: tests/render-gateway.sh
+        run: bash tests/render-gateway.sh
 
   no-mail-stack:
     runs-on: ubuntu-latest
@@ -28,7 +28,7 @@ jobs:
         with:
           node-version: "24"
       - name: Mail stack charts must not be in this repo
-        run: tests/no-mail-stack.sh
+        run: bash tests/no-mail-stack.sh
 
   helm-release-index:
     runs-on: ubuntu-latest
@@ -39,7 +39,7 @@ jobs:
           node-version: "24"
       - uses: azure/setup-helm@v4
       - name: Helm repo index must not fail without temp/
-        run: tests/helm-release-index.sh
+        run: bash tests/helm-release-index.sh
 
   github-actions-node24:
     runs-on: ubuntu-latest
@@ -49,4 +49,14 @@ jobs:
         with:
           node-version: "24"
       - name: Workflows must use Node.js 24
-        run: tests/github-actions-node24.sh
+        run: bash tests/github-actions-node24.sh
+
+  ci-script-executable:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - name: Mail stack script must not fail with Permission denied
+        run: bash tests/ci-script-executable.sh
