@@ -6,16 +6,21 @@ on:
     paths:
       - '**.tgz'
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Git Checkout
         uses: actions/checkout@v7
-      - name: Helm Installation
-        uses: azure/setup-helm@v1.1
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v7
         with:
-          version: v3.7.0
+          node-version: "24"
+      - name: Helm Installation
+        uses: azure/setup-helm@v4
       - name: Update Index
         run: |
           helm repo index .
