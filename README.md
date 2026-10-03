@@ -38,10 +38,11 @@ dashboard for the spinning-disk outage: WAL fsync p99 (yellow at etcd's 10ms
 warning, red at 100ms), backend commit, API-server etcd write latency (the
 path Patroni uses to renew its leader lock), and proposals backing up.
 
-Grafana loads it only when release `grafana` has the dashboard sidecar on.
-Those keys are in [`grafana-auth-values.yaml`](grafana-auth-values.yaml).
-Merge them with `--reuse-values`. Do not upgrade that release with only that
-file.
+Release `grafana` in `monitoring` (revision 9) loads it with the dashboard sidecar.
+The dashboard is **etcd disk**, in the **etcd** folder, at
+`/d/etcd-disk/etcd-disk`. The sidecar keys are in
+[`grafana-auth-values.yaml`](grafana-auth-values.yaml). Later upgrades of that
+release must use `--reuse-values`. Do not upgrade it with only that file.
 
 Check the cluster path (bypasses Access) and the public login:
 
