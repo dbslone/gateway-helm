@@ -12,6 +12,8 @@ This chart now only manages:
   to `mvn-backend-simplefbo-backend.simplefbo.svc.cluster.local:8003`
 - `VirtualService` `grafana-ui` — routes `graph.dbslone.com` to
   `grafana.monitoring.svc.cluster.local:80`
+- ConfigMap `etcd-disk-grafana-dashboard` (namespace `monitoring`) — Grafana
+  dashboard for the etcd WAL-fsync failure that took the cluster down
 - ConfigMap `simplefbo-backend-clerk-env` — reference env fragment for the backend
 
 ## graph.dbslone.com (Cloudflare Access)
@@ -28,6 +30,18 @@ Already in place:
 - **Kemp** — that VIP already forwards `graph.dbslone.com` to Istio. No new virtual service.
 - **Access** — self-hosted application `Grafana` on `graph.dbslone.com`. The only IdP is GitHub. The allow rule is the reusable policy **Allow dbslone** (email `dbslone@gmail.com`), the same policy as `jobs.dbslone.com`. The Access API rejected a GitHub-username include.
 - **Static assets** — application `Grafana public assets` on `graph.dbslone.com/public` with a Bypass policy. Grafana loads `/public/build/*.js` without cookies (`ChunkLoadError: Loading chunk 192 failed` if Access returns the login page). `/` and `/api` stay behind GitHub login.
+
+## etcd disk dashboard
+
+ConfigMap `etcd-disk-grafana-dashboard` in namespace `monitoring` is the
+dashboard for the spinning-disk outage: WAL fsync p99 (yellow at etcd's 10ms
+warning, red at 100ms), backend commit, API-server etcd write latency (the
+path Patroni uses to renew its leader lock), and proposals backing up.
+
+Grafana loads it only when release `grafana` has the dashboard sidecar on.
+Those keys are in [`grafana-auth-values.yaml`](grafana-auth-values.yaml).
+Merge them with `--reuse-values`. Do not upgrade that release with only that
+file.
 
 Check the cluster path (bypasses Access) and the public login:
 

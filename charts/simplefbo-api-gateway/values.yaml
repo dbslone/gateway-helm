@@ -47,3 +47,13 @@ grafanaUi:
   host: graph.dbslone.com
   service: grafana.monitoring.svc.cluster.local
   port: 80
+
+# etcd WAL fsync dashboard for the spinning-disk outage. The ConfigMap lives in
+# monitoring and is labeled so the Grafana dashboard sidecar picks it up.
+etcdDashboard:
+  enabled: true
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+  annotations:
+    grafana_folder: etcd

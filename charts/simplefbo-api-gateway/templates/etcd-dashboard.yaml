@@ -1,0 +1,21 @@
+{{- if .Values.etcdDashboard.enabled }}
+# etcd disk dashboard. Grafana only loads this after the monitoring Grafana
+# release has sidecar.dashboards.enabled (see grafana-auth-values.yaml).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: etcd-disk-grafana-dashboard
+  namespace: {{ .Values.etcdDashboard.namespace }}
+  labels:
+    {{- include "gateway-helm.labels" . | nindent 4 }}
+    {{- with .Values.etcdDashboard.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with .Values.etcdDashboard.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+data:
+  etcd-disk.json: |
+{{ .Files.Get "dashboards/etcd-disk.json" | indent 4 }}
+{{- end }}

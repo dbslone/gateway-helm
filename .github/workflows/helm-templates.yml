@@ -23,6 +23,8 @@ jobs:
         run: bash tests/render-grafana-ui.sh
       - name: Sign in must not bounce graph.dbslone.com/login back home
         run: bash tests/render-grafana-login.sh
+      - name: etcd dashboard must chart WAL fsync
+        run: bash tests/render-etcd-dashboard.sh
 
   grafana-public-chunk:
     runs-on: ubuntu-latest

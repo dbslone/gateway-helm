@@ -17,3 +17,14 @@ env:
   GF_USERS_ALLOW_SIGN_UP: "false"
   GF_USERS_AUTO_ASSIGN_ORG: "true"
   GF_USERS_AUTO_ASSIGN_ORG_ROLE: Admin
+
+# Load ConfigMaps labeled grafana_dashboard=1 (the etcd disk dashboard, and the
+# SimpleFBO dashboards already in this namespace). searchNamespace stays
+# monitoring, which is where those ConfigMaps are created.
+sidecar:
+  dashboards:
+    enabled: true
+    label: grafana_dashboard
+    labelValue: "1"
+    searchNamespace: monitoring
+    folderAnnotation: grafana_folder
