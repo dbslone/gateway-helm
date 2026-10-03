@@ -16,7 +16,7 @@ This chart now only manages:
 
 ## graph.dbslone.com (Cloudflare Access)
 
-Login is Cloudflare Access. Grafana's own form stays off, and `/login` redirects to `/` so it does not sit on the Welcome to Grafana screen. The auth env is in
+Login is Cloudflare Access. After GitHub, Grafana signs that email in with the `Cf-Access-Authenticated-User-Email` header (`auto_sign_up`, org role Admin). `/login` is not redirected to `/`, because the Sign in button opens `/login` and that bounce returns to the same screen. The auth env is in
 [`grafana-auth-values.yaml`](grafana-auth-values.yaml) and is already merged
 into Helm release `grafana` in namespace `monitoring`. Do not upgrade that
 release with only that file.
