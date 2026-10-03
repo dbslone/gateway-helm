@@ -22,6 +22,16 @@ jobs:
       - name: Render Grafana VirtualService for graph.dbslone.com
         run: bash tests/render-grafana-ui.sh
 
+  grafana-public-chunk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - name: Grafana chunk 192 must not be the Access login page
+        run: bash tests/grafana-public-chunk.sh
+
   no-mail-stack:
     runs-on: ubuntu-latest
     steps:

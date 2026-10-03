@@ -27,6 +27,7 @@ Already in place:
 - **DNS** — proxied `A` `graph.dbslone.com` → `76.95.114.68` (same VIP as `jobs.dbslone.com`).
 - **Kemp** — that VIP already forwards `graph.dbslone.com` to Istio. No new virtual service.
 - **Access** — self-hosted application `Grafana` on `graph.dbslone.com`. The only IdP is GitHub. The allow rule is the reusable policy **Allow dbslone** (email `dbslone@gmail.com`), the same policy as `jobs.dbslone.com`. The Access API rejected a GitHub-username include.
+- **Static assets** — application `Grafana public assets` on `graph.dbslone.com/public` with a Bypass policy. Grafana loads `/public/build/*.js` without cookies (`ChunkLoadError: Loading chunk 192 failed` if Access returns the login page). `/` and `/api` stay behind GitHub login.
 
 Check the cluster path (bypasses Access) and the public login:
 
