@@ -38,12 +38,19 @@ if missing:
     )
     sys.exit(1)
 
-if '"value": 0.01' not in blob:
-    sys.stderr.write(
-        "FAIL: the etcd dashboard would miss a slow spinning disk because "
-        "WAL fsync is not marked at etcd's 10ms warning\n"
-    )
-    sys.exit(1)
+# Colors sit above this M.2's normal flush tail (WAL p99 ~50ms, backend
+# commit p99 ~100ms). etcd's 10ms/25ms server-SSD budgets would stay yellow.
+for needle, why in (
+    ('"value": 0.1', "WAL fsync is not marked yellow at 100ms"),
+    ('"value": 0.2', "backend commit is not marked yellow at 200ms"),
+    ('"value": 0.5', "neither series is marked red at 500ms"),
+):
+    if needle not in blob:
+        sys.stderr.write(
+            "FAIL: the etcd dashboard would warn on this host's normal flush "
+            "tail because %s\n" % why
+        )
+        sys.exit(1)
 
 if dash.get("uid") != "etcd-disk":
     sys.stderr.write(

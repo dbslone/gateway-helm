@@ -30,7 +30,7 @@
       "gridPos": { "h": 5, "w": 24, "x": 0, "y": 0 },
       "id": 1,
       "options": {
-        "content": "Every Kubernetes API write goes through etcd, and etcd fsyncs its write-ahead log on every commit. When that fsync is slow, the API server is slow. When the API server is slow enough, anything that depends on it starts timing out.\n\nPatroni (the HA manager in the Zalando Postgres operator) uses Kubernetes as its consensus store. It has to renew its leader lock through the API. A spinning disk makes the fsync slow enough that the renewal fails, Postgres becomes unreachable, and the outage keeps compounding.\n\n**Yellow** on WAL fsync is etcd's own warning: p99 above **10ms**. **Red** is **100ms** — the disk is the outage, not a noisy neighbor.",
+        "content": "Every Kubernetes API write goes through etcd, and etcd fsyncs its write-ahead log on every commit. When that fsync is slow, the API server is slow. When the API server is slow enough, anything that depends on it starts timing out.\n\nPatroni (the HA manager in the Zalando Postgres operator) uses Kubernetes as its consensus store. It has to renew its leader lock through the API. A spinning disk makes the fsync slow enough that the renewal fails, Postgres becomes unreachable, and the outage keeps compounding.\n\n**Yellow** is past this host's normal tail: WAL fsync p99 above **100ms**, backend commit p99 above **200ms**. **Red** is **500ms**, long enough that API writes start to stall. etcd's published server-SSD budgets are 10ms and 25ms. This M.2 is under that most of the time (p50 under 2ms); those lines would sit yellow on a consumer-drive flush tail.",
         "mode": "markdown"
       },
       "title": "The chain",
@@ -86,12 +86,12 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "description": "etcd warns when WAL fsync p99 is above 10ms. A spinning disk sits well above that.",
+      "description": "Yellow at 100ms, red at 500ms. Usual p99 here is about 50ms. etcd's server-SSD budget is 10ms.",
       "fieldConfig": {
         "defaults": {
           "decimals": 1,
           "unit": "s",
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 0.01 }, { "color": "red", "value": 0.1 }] }
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 0.1 }, { "color": "red", "value": 0.5 }] }
         },
         "overrides": []
       },
@@ -110,12 +110,12 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "description": "Backend commit p99 should stay under 25ms. This is the commit that waits on the WAL fsync.",
+      "description": "Yellow at 200ms, red at 500ms. Usual p99 here is about 100ms, while p50 is about 2ms. etcd's server-SSD budget is 25ms.",
       "fieldConfig": {
         "defaults": {
           "decimals": 1,
           "unit": "s",
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 0.025 }, { "color": "red", "value": 0.1 }] }
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 0.2 }, { "color": "red", "value": 0.5 }] }
         },
         "overrides": []
       },
@@ -175,12 +175,12 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "description": "Dashed lines are 10ms (etcd warning) and 100ms (disk is the outage).",
+      "description": "Dashed lines are 100ms and 500ms for this M.2. etcd's server-SSD budget is 10ms.",
       "fieldConfig": {
         "defaults": {
           "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never", "spanNulls": true, "thresholdsStyle": { "mode": "dashed" } },
           "unit": "s",
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 0.01 }, { "color": "red", "value": 0.1 }] }
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 0.1 }, { "color": "red", "value": 0.5 }] }
         },
         "overrides": []
       },
@@ -204,12 +204,12 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "description": "Dashed line is etcd's 25ms backend-commit budget.",
+      "description": "Dashed lines are 200ms and 500ms for this M.2. etcd's server-SSD budget is 25ms.",
       "fieldConfig": {
         "defaults": {
           "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never", "spanNulls": true, "thresholdsStyle": { "mode": "dashed" } },
           "unit": "s",
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 0.025 }, { "color": "red", "value": 0.1 }] }
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 0.2 }, { "color": "red", "value": 0.5 }] }
         },
         "overrides": []
       },

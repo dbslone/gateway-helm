@@ -34,9 +34,10 @@ Already in place:
 ## etcd disk dashboard
 
 ConfigMap `etcd-disk-grafana-dashboard` in namespace `monitoring` is the
-dashboard for the spinning-disk outage: WAL fsync p99 (yellow at etcd's 10ms
-warning, red at 100ms), backend commit, API-server etcd write latency (the
-path Patroni uses to renew its leader lock), and proposals backing up.
+dashboard for the spinning-disk outage: WAL fsync p99 (yellow at 100ms, red at
+500ms on this consumer M.2), backend commit (yellow at 200ms, red at 500ms),
+API-server etcd write latency (the path Patroni uses to renew its leader
+lock), and proposals backing up.
 
 Release `grafana` in `monitoring` (revision 9) loads it with the dashboard sidecar.
 The dashboard is **etcd disk**, in the **etcd** folder, at
