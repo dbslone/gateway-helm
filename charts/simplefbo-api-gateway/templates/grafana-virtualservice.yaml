@@ -1,0 +1,22 @@
+{{- if .Values.grafanaUi.enabled }}
+# https://graph.dbslone.com — Grafana UI. Login is Cloudflare Access (GitHub
+# user dbslone). Do not add a second Istio Gateway.
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: grafana-ui
+  namespace: simplefbo
+  labels:
+    {{- include "gateway-helm.labels" . | nindent 4 }}
+spec:
+  hosts:
+    - {{ .Values.grafanaUi.host | quote }}
+  gateways:
+    - istio-ingress/api-gateway
+  http:
+    - route:
+        - destination:
+            host: {{ .Values.grafanaUi.service | quote }}
+            port:
+              number: {{ .Values.grafanaUi.port }}
+{{- end }}

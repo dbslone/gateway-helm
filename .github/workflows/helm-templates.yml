@@ -19,6 +19,8 @@ jobs:
       - uses: azure/setup-helm@v4
       - name: Gateway chart resources must carry helm.sh/chart
         run: bash tests/render-gateway.sh
+      - name: Render Grafana VirtualService for graph.dbslone.com
+        run: bash tests/render-grafana-ui.sh
 
   no-mail-stack:
     runs-on: ubuntu-latest

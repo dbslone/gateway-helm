@@ -10,7 +10,30 @@ This chart now only manages:
   listener (HTTP/HTTPS, TLS hosts)
 - `VirtualService` `api-gateway-vs` — routes `api.simplefbo.com` / `api.dbslone.com`
   to `mvn-backend-simplefbo-backend.simplefbo.svc.cluster.local:8003`
+- `VirtualService` `grafana-ui` — routes `graph.dbslone.com` to
+  `grafana.monitoring.svc.cluster.local:80`
 - ConfigMap `simplefbo-backend-clerk-env` — reference env fragment for the backend
+
+## graph.dbslone.com (Cloudflare Access)
+
+Login is Cloudflare Access. Grafana's own form stays off. The auth env is in
+[`grafana-auth-values.yaml`](grafana-auth-values.yaml) and is already merged
+into Helm release `grafana` in namespace `monitoring`. Do not upgrade that
+release with only that file.
+
+Already in place:
+
+- **Certificate** — `simplefbo-cf-tls` includes `*.dbslone.com`.
+- **DNS** — proxied `A` `graph.dbslone.com` → `76.95.114.68` (same VIP as `jobs.dbslone.com`).
+- **Kemp** — that VIP already forwards `graph.dbslone.com` to Istio. No new virtual service.
+- **Access** — self-hosted application `Grafana` on `graph.dbslone.com`. The only IdP is GitHub. The allow rule is the reusable policy **Allow dbslone** (email `dbslone@gmail.com`), the same policy as `jobs.dbslone.com`. The Access API rejected a GitHub-username include.
+
+Check the cluster path (bypasses Access) and the public login:
+
+```bash
+curl -skI --resolve graph.dbslone.com:443:192.168.7.105 https://graph.dbslone.com
+curl -sI https://graph.dbslone.com
+```
 
 ## IMPORTANT
 

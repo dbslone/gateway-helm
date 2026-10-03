@@ -1,0 +1,14 @@
+# Merge these keys into Helm release `grafana` (namespace `monitoring`,
+# chart grafana). Do not `helm upgrade -f` this file by itself — that resets
+# datasources, persistence, the admin password, and the internal LoadBalancer.
+#
+# Cloudflare Access (GitHub user dbslone) is the only login for
+# https://graph.dbslone.com. Anonymous Admin matches the JobRunr dashboard:
+# once Access lets you in, the UI is open. A request that reaches Kemp and
+# skips Cloudflare is open too.
+env:
+  GF_SERVER_ROOT_URL: https://graph.dbslone.com
+  GF_AUTH_ANONYMOUS_ENABLED: "true"
+  GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+  GF_AUTH_DISABLE_LOGIN_FORM: "true"
+  GF_USERS_ALLOW_SIGN_UP: "false"

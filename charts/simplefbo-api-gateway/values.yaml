@@ -37,3 +37,13 @@ telemetryIngest:
     service: tempo.monitoring.svc.cluster.local
     httpPort: 4318
   sharedSecret: "0166652ffbdba2b4ed4365a95716a66e71c6ac7fb10941c6478e82eff05ad349"
+
+# Grafana UI at graph.dbslone.com through the existing Istio Gateway.
+# Cloudflare Access (GitHub user dbslone) is the login. Grafana's own form
+# stays off — merge gateway-helm/grafana-auth-values.yaml into Helm release
+# `grafana` in namespace monitoring (do not upgrade with only that file).
+grafanaUi:
+  enabled: true
+  host: graph.dbslone.com
+  service: grafana.monitoring.svc.cluster.local
+  port: 80
