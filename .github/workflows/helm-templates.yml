@@ -21,6 +21,8 @@ jobs:
         run: bash tests/render-gateway.sh
       - name: Render Grafana VirtualService for graph.dbslone.com
         run: bash tests/render-grafana-ui.sh
+      - name: graph.dbslone.com/login must not serve the Welcome to Grafana screen
+        run: bash tests/render-grafana-login.sh
 
   grafana-public-chunk:
     runs-on: ubuntu-latest

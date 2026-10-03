@@ -14,6 +14,16 @@ spec:
   gateways:
     - istio-ingress/api-gateway
   http:
+    # Grafana's form is disabled. /login only renders "Welcome to Grafana"
+    # with nothing to submit, so send people to the app.
+    - match:
+        - uri:
+            exact: /login
+        - uri:
+            prefix: /login/
+      redirect:
+        redirectCode: 302
+        uri: /
     - route:
         - destination:
             host: {{ .Values.grafanaUi.service | quote }}
