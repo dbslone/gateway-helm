@@ -95,6 +95,15 @@ spec:
               number: 8003
     - match:
         - uri:
+            prefix: /api/airports
+      {{- include "istio.corsPolicy" . | nindent 6 }}
+      route:
+        - destination:
+            host: mvn-backend-simplefbo-backend.simplefbo.svc.cluster.local
+            port:
+              number: 8003
+    - match:
+        - uri:
             prefix: /actuator
       route:
         - destination:
