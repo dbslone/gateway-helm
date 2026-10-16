@@ -57,3 +57,10 @@ etcdDashboard:
     grafana_dashboard: "1"
   annotations:
     grafana_folder: etcd
+
+# Hermes agent operator (subchart). The operator pod runs in this release's namespace,
+# but it only watches and creates agents in the `hermes` namespace (must already exist).
+# Nothing is reconciled in `simplefbo`, so a HermesAgent created there is ignored.
+hermes-operator:
+  watchNamespace: hermes
+  agentNamespace: hermes
