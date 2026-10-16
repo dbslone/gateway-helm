@@ -26,5 +26,5 @@ appVersion: "1.16.0"
 # Hermes agent operator, installed with its chart defaults (no values overrides).
 dependencies:
   - name: hermes-operator
-    version: 0.0.1
+    version: 0.0.2
     repository: oci://ghcr.io/dbslone/charts

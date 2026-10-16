@@ -46,6 +46,8 @@ for doc in docs:
                 name = line.split(":", 1)[1].strip()
     if kind not in tracked:
         continue
+    if "helm.sh/chart: hermes-operator-" in doc:
+        continue  # subchart resources carry the subchart's own label
     found[kind] += 1
     if want not in "\n".join(meta_lines):
         missing.append(f"{kind}/{name or '?'}")
