@@ -1,6 +1,6 @@
 dependencies:
 - name: hermes-operator
   repository: oci://ghcr.io/dbslone/charts
-  version: 0.0.7
-digest: sha256:0b12a68cfd80bf70afd2429b4e8bcdb6db4e241e918f0c0e82efc6e508f8df94
-generated: "2026-10-21T23:51:25.519751-07:00"
+  version: 0.0.8
+digest: sha256:945b577d0075a35ea3a0689e1b7ffdcd86c7dd1f99febf1465717dc187e37bb7
+generated: "2026-10-23T01:27:35.89341-07:00"
